@@ -19,10 +19,12 @@
 # *
 # **************************************************************************
 
+__version__ = '0.0.1'
+__author__ = 'Jose Miguel de la Rosa Trevin'
+
+
 import sys
-from itertools import izip
 from collections import OrderedDict, namedtuple
-import copy
 
 
 class Column:
@@ -60,6 +62,105 @@ class Table:
         self._columns = OrderedDict()
         self._rows = []
 
+    def addRow(self, *args, **kwargs):
+        self._rows.append(self.Row(*args, **kwargs))
+
+    def readStar(self, inputFile, tableName=None):
+        """
+        :param inputFile: Provide the input file from where to read the data.
+            The file pointer will be moved until the last data line of the
+            requested table.
+        :return:
+        """
+        self.clear()
+        dataStr = 'data_%s' % (tableName or '')
+
+        self._findDataLine(inputFile, dataStr)
+
+        # Find first column line and parse all columns
+        line, foundLoop = self._findLabelLine(inputFile)
+        colNames = []
+        values = []
+
+        while line.startswith('_'):
+            parts = line.split()
+            colNames.append(parts[0][1:])
+            if not foundLoop:
+                values.append(parts[1])
+            line = inputFile.readline().strip()
+
+        self._createColums(colNames)
+
+        if not foundLoop:
+            self.addRow(*values)
+        else:
+            # Parse all data lines
+            while line:
+                self.addRow(*line.split())
+                line = inputFile.readline().strip()
+
+    def read(self, fileName, tableName=None):
+        with open(fileName) as f:
+            self.readStar(f, tableName)
+
+    def writeStar(self, outputFile, tableName=None):
+        outputFile.write("\ndata_%s\n\nloop_\n"
+                         % (tableName or ''))
+
+        if self.size() == 0:
+            return
+
+        # Write column names
+        for col in self._columns.values():
+            outputFile.write("_%s \n" % col)
+
+        # Take a hint for the columns width from the first row
+        lineFormat = ""
+        for v in self._rows[0]:
+            lineFormat += "{:>%d}" % (len(str(v)) + 3)
+
+        # Write data rows
+        for row in self._rows:
+            outputFile.write(lineFormat.format(*row))
+            outputFile.write('\n')
+
+        outputFile.write('\n')
+
+    def write(self, output_star, tableName=None):
+        with open(output_star, 'w') as output_file:
+            self.writeStar(output_file, tableName)
+
+    def printStar(self):
+        self.writeStar(sys.stdout)
+
+    def size(self):
+        return len(self._rows)
+
+    def getColumns(self):
+        return self._columns.values()
+
+    def getColumnValues(self, colName):
+        """
+        Return the values of a given column
+        :param colName: The name of an existing column to retrieve values.
+        :return: A list with all values of that column.
+        """
+        if colName not in self._columns:
+            raise Exception("Not existing column: %s" % colName)
+        return [getattr(row, colName) for row in self._rows]
+
+    def __len__(self):
+        return self.size()
+
+    def __iter__(self):
+        for item in self._rows:
+            yield item
+
+    def __getitem__(self, item):
+        return self._rows[item]
+
+    # --------- Internal implementation methods ------------------------
+
     def _addColumn(self, nameOrTuple):
         """
         :param nameOrTuple: This parameter should be either a string or
@@ -93,79 +194,17 @@ class Table:
         raise Exception("%s block was not found")
 
     def _findLabelLine(self, inputFile):
-        for line in inputFile:
-            if line.startswith('_'):
-                return line
-        return ''
+        line = ''
+        foundLoop = False
 
-    def addRow(self, *args, **kwargs):
-        self._rows.append(self.Row(*args, **kwargs))
+        for l in inputFile:
+            if l.startswith('_'):
+                line = l
+                break
+            elif l.startswith('loop_'):
+                foundLoop = True
 
-    def readStar(self, inputFile, tableName=None):
-        """
-        :param inputFile: Provide the input file from where to read the data.
-            The file pointer will be moved until the last data line of the
-            requested table.
-        :return:
-        """
-        self.clear()
-        dataStr = 'data_%s' % (tableName or '')
-        print("dataStr:", dataStr)
+        return line.strip(), foundLoop
 
-        self._findDataLine(inputFile, dataStr)
-
-        # Find first column line and parse all columns
-        line = self._findLabelLine(inputFile)
-
-        colNames = []
-        while line.startswith('_'):
-            colNames.append(line.split()[0].strip()[1:])
-            line = inputFile.readline()
-
-        self._createColums(colNames)
-
-        line = line.strip()
-        # Parse all data lines
-        while line:
-            self.addRow(*line.split())
-            line = inputFile.readline().strip()
-
-    def read(self, fileName, tableName=None):
-
-        with open(fileName) as f:
-            self.readStar(f, tableName)
-
-    def writeStar(self, outputFile, tableName=None):
-        outputFile.write("\ndata_%s\n\nloop_\n"
-                         % (tableName or ''))
-        line_format = ""
-
-        for col in self._columns.values():
-            outputFile.write("_%s \n" % col)
-
-        for row in self._rows:
-            outputFile.write(' '.join(row) + '\n')
-
-        outputFile.write('\n')
-
-    def write(self, output_star, tableName=None):
-        with open(output_star, 'w') as output_file:
-            self.writeStar(output_file, tableName)
-
-    def printStar(self):
-        self.writeStar(sys.stdout)
-
-    def size(self):
-        return len(self._data)
-
-    def __len__(self):
-        return self.size()
-
-    def __iter__(self):
-        for item in self._data:
-            yield item
-
-    def __getitem__(self, item):
-        return self._rows[item]
 
 
