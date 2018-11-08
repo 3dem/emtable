@@ -23,7 +23,9 @@ __version__ = '0.0.1'
 __author__ = 'Jose Miguel de la Rosa Trevin'
 
 
+import os
 import sys
+import argparse
 from collections import OrderedDict, namedtuple
 
 
@@ -188,23 +190,70 @@ class Table:
         """ Raise an exception if the desired data string is not found.
         Move the line pointer after the desired line if found.
         """
-        for line in inputFile:
+        line = inputFile.readline()
+        while line:
             if line.startswith(dataStr):
                 return line
+            line = inputFile.readline()
+
         raise Exception("%s block was not found")
 
     def _findLabelLine(self, inputFile):
         line = ''
         foundLoop = False
 
-        for l in inputFile:
+        l = inputFile.readline()
+        while l:
             if l.startswith('_'):
                 line = l
                 break
             elif l.startswith('loop_'):
                 foundLoop = True
+            l = inputFile.readline()
 
         return line.strip(), foundLoop
 
 
+if __name__ == '__main__':
 
+    parser = argparse.ArgumentParser(
+        description="Script to manipulate metadata files.")
+
+    add = parser.add_argument  # shortcut
+    add("input", help="Input metadata filename. ", nargs='?', default="")
+    add("output",
+        help="Output metadata filename, if no provided, print to stdout. ",
+        nargs='?', default="")
+
+    add("-l", "--limit", type=int, default=0,
+        help="Limit the number of rows processed, useful for testing. ")
+
+    #add("-v", "--verbosity", action="count", default=0)
+
+    args = parser.parse_args()
+
+    if '@' in args.input:
+        tableName, fileName = args.input.split('@')
+    else:
+        tableName, fileName = None, args.input
+
+    if not os.path.exists(fileName):
+        raise Exception("Input file '%s' does not exists. " % fileName)
+
+    tableIn = Table(fileName=fileName, tableName=tableName)
+
+    # Create another table with same columns
+    tableOut = Table(columns=[str(c) for c in tableIn.getColumns()])
+
+    limit = args.limit
+
+    for i, row in enumerate(tableIn):
+        if limit > 0 and i == limit:
+            break
+
+        tableOut.addRow(*row)
+
+    if args.output:
+        tableOut.write(args.output, tableName)
+    else:
+        tableOut.printStar()
