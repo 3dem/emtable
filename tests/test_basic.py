@@ -1,3 +1,5 @@
+
+import sys
 from cStringIO import StringIO
 import unittest
 
@@ -77,6 +79,21 @@ class TestTable(unittest.TestCase):
         self.assertEqual(coeffs, range(36))
 
         f1.close()
+
+    def test_write_singleRow(self):
+        t = Table()
+        f1 = StringIO(one_micrograph_mc)
+        t.readStar(f1, tableName='global_shift')
+        t.writeStar(sys.stdout, tableName='global_shifts', singleRow=True)
+
+        t = Table(columns=['rlnImageSizeX',
+                           'rlnImageSizeY',
+                           'rlnMicrographMovieName'])
+        t.addRow(3710, 3838, 'Movies/14sep05c_00024sq_00003hl_00002es.frames.out.mrc')
+        fn = '/tmp/test-single-row.star'
+        with open(fn, 'w') as f:
+            print("Writing star file to: ", fn)
+            t.writeStar(f, singleRow=True)
 
 
 if __name__ == '__main__':

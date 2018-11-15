@@ -19,7 +19,7 @@
 # *
 # **************************************************************************
 
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 __author__ = 'Jose Miguel de la Rosa Trevin'
 
 
@@ -105,12 +105,29 @@ class Table:
         with open(fileName) as f:
             self.readStar(f, tableName)
 
-    def writeStar(self, outputFile, tableName=None):
-        outputFile.write("\ndata_%s\n\nloop_\n"
-                         % (tableName or ''))
+    def writeStar(self, outputFile, tableName=None, singleRow=False):
+        """
+        Write a Table in Star format to the given file.
+        :param outputFile: File handler that should be already opened and
+            in the position to write.
+        :param tableName: The name of the table to write.
+        :param singleRow: If True, don't write loop_, just label - value pairs.
+        """
+        outputFile.write("\ndata_%s\n\n" % (tableName or ''))
 
         if self.size() == 0:
             return
+
+        if singleRow:
+            m = max([len(c) for c in self._columns.keys()]) + 5
+            lineFormat = "_{:<%d} {:>10}\n" % m
+            row = self._rows[0]
+            for col, value in row._asdict().iteritems():
+                outputFile.write(lineFormat.format(col, value))
+            outputFile.write('\n\n')
+            return
+
+        outputFile.write("loop_\n")
 
         # Write column names
         for col in self._columns.values():
@@ -132,8 +149,8 @@ class Table:
         with open(output_star, 'w') as output_file:
             self.writeStar(output_file, tableName)
 
-    def printStar(self):
-        self.writeStar(sys.stdout)
+    def printStar(self, tableName=None):
+        self.writeStar(sys.stdout, tableName)
 
     def size(self):
         return len(self._rows)
@@ -256,4 +273,4 @@ if __name__ == '__main__':
     if args.output:
         tableOut.write(args.output, tableName)
     else:
-        tableOut.printStar()
+        tableOut.printStar(tableName)
