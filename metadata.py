@@ -19,7 +19,7 @@
 # *
 # **************************************************************************
 
-__version__ = '0.0.2'
+__version__ = '0.0.3'
 __author__ = 'Jose Miguel de la Rosa Trevin'
 
 
@@ -62,6 +62,10 @@ class Table:
     def clear(self):
         self.Row = None
         self._columns = OrderedDict()
+        self._rows = []
+
+    def clearRows(self):
+        """ Remove all the rows from the table, but keep its columns. """
         self._rows = []
 
     def addRow(self, *args, **kwargs):
@@ -134,9 +138,16 @@ class Table:
             outputFile.write("_%s \n" % col)
 
         # Take a hint for the columns width from the first row
-        lineFormat = ""
-        for v in self._rows[0]:
-            lineFormat += "{:>%d}" % (len(str(v)) + 3)
+
+        widths = [len(str(v)) for v in self._rows[0]]
+        # Check middle and last row, just in case ;)
+        for index in [len(self)/2, -1]:
+            for i, v in enumerate(self._rows[index]):
+                w = len(str(v))
+                if w > widths[i]:
+                    widths[i] = w
+
+        lineFormat = " ".join("{:>%d} " % (w + 1) for w in widths)
 
         # Write data rows
         for row in self._rows:
@@ -177,6 +188,9 @@ class Table:
 
     def __getitem__(self, item):
         return self._rows[item]
+
+    def __setitem__(self, key, value):
+        self._rows[key] = value
 
     # --------- Internal implementation methods ------------------------
 
