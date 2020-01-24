@@ -4,7 +4,7 @@
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
-# * the Free Software Foundation; either version 2 of the License, or
+# * the Free Software Foundation; either version 3 of the License, or
 # * (at your option) any later version.
 # *
 # * This program is distributed in the hope that it will be useful,
@@ -19,13 +19,14 @@
 # *
 # **************************************************************************
 
-__version__ = '0.0.3'
+__version__ = '0.0.5'
 __author__ = 'Jose Miguel de la Rosa Trevin'
 
 
 import os
 import sys
 import argparse
+from io import open
 from collections import OrderedDict, namedtuple
 
 
@@ -109,7 +110,22 @@ class Table:
         with open(fileName) as f:
             self.readStar(f, tableName)
 
-    def writeStar(self, outputFile, tableName=None, singleRow=False):
+    def _formatValue(self, v):
+        return '%0.6f' % v if isinstance(v, float) else str(v)
+
+    def _getFormatStr(self, v):
+        return '.6f' if isinstance(v, float) else ''
+
+    def writeStarLine(self, outputFile, values):
+        """ Function to write a single row into the star file.
+        The function writeStar should have been called first with
+        writeRows=False.
+        """
+        outputFile.write(self.__lineFormat.format(*values))
+        outputFile.write('\n')
+
+    def writeStar(self, outputFile, tableName=None,
+                  singleRow=False, writeRows=True):
         """
         Write a Table in Star format to the given file.
         :param outputFile: File handler that should be already opened and
@@ -126,7 +142,7 @@ class Table:
             m = max([len(c) for c in self._columns.keys()]) + 5
             lineFormat = "_{:<%d} {:>10}\n" % m
             row = self._rows[0]
-            for col, value in row._asdict().iteritems():
+            for col, value in row._asdict().items():
                 outputFile.write(lineFormat.format(col, value))
             outputFile.write('\n\n')
             return
@@ -138,23 +154,26 @@ class Table:
             outputFile.write("_%s \n" % col)
 
         # Take a hint for the columns width from the first row
+        widths = [len(self._formatValue(v)) for v in self._rows[0]]
+        formats = [self._getFormatStr(v) for v in self._rows[0]]
 
-        widths = [len(str(v)) for v in self._rows[0]]
-        # Check middle and last row, just in case ;)
-        for index in [len(self)/2, -1]:
-            for i, v in enumerate(self._rows[index]):
-                w = len(str(v))
-                if w > widths[i]:
-                    widths[i] = w
+        n = len(self)
+        if n > 1:
+            # Check middle and last row, just in case ;)
+            for index in [n//2, -1]:
+                for i, v in enumerate(self._rows[index]):
+                    w = len(self._formatValue(v))
+                    if w > widths[i]:
+                        widths[i] = w
 
-        lineFormat = " ".join("{:>%d} " % (w + 1) for w in widths)
+        self.__lineFormat = " ".join("{:>%d%s} " % (w+1, f) for w, f in zip(widths, formats))
 
-        # Write data rows
-        for row in self._rows:
-            outputFile.write(lineFormat.format(*row))
+        if writeRows:
+            # Write data rows
+            for row in self._rows:
+                self.writeStarLine(outputFile, row)
+
             outputFile.write('\n')
-
-        outputFile.write('\n')
 
     def write(self, output_star, tableName=None):
         with open(output_star, 'w') as output_file:
@@ -203,6 +222,8 @@ class Table:
             col = Column(nameOrTuple)
         elif isinstance(nameOrTuple, tuple):
             col = Column(nameOrTuple[0], nameOrTuple[1])
+        elif isinstance(nameOrTuple, Column):
+            col = nameOrTuple
         else:
             raise Exception("Invalid input as column, "
                             "should be either string or tuple.")
@@ -227,7 +248,7 @@ class Table:
                 return line
             line = inputFile.readline()
 
-        raise Exception("%s block was not found")
+        raise Exception("'%s' block was not found" % dataStr)
 
     def _findLabelLine(self, inputFile):
         line = ''
@@ -259,7 +280,7 @@ if __name__ == '__main__':
     add("-l", "--limit", type=int, default=0,
         help="Limit the number of rows processed, useful for testing. ")
 
-    #add("-v", "--verbosity", action="count", default=0)
+    # add("-v", "--verbosity", action="count", default=0)
 
     args = parser.parse_args()
 
@@ -279,7 +300,7 @@ if __name__ == '__main__':
     limit = args.limit
 
     for i, row in enumerate(tableIn):
-        if limit > 0 and i == limit:
+        if 0 < limit == i:
             break
 
         tableOut.addRow(*row)
