@@ -1,10 +1,31 @@
 
 import sys
-from cStringIO import StringIO
+import os
+import psutil
+
+try:
+    from StringIO import StringIO ## for Python 2
+except ImportError:
+    from io import StringIO ## for Python 3
 import unittest
 
 from metadata import Table
 from strings_star_relion import particles_3d_classify, one_micrograph_mc
+
+here = os.path.abspath(os.path.dirname(__file__))
+
+
+def testfile(*args):
+    """ Return a given testfile. """
+    return os.path.join(here, *args)
+
+
+def memory_usage():
+    # return the memory usage in MB
+    process = psutil.Process(os.getpid())
+    mem = process.memory_full_info().uss / float(1 << 20)
+    print("Memory (MB):", mem)
+    return mem
 
 
 class TestTable(unittest.TestCase):
@@ -13,7 +34,7 @@ class TestTable(unittest.TestCase):
     """
     def _checkColumns(self, table, columnNames):
         for colName, col in zip(columnNames, table.getColumns()):
-            self.assertEqual(colName, str(col))
+            self.assertEqual(colName, col.getName())
 
     def test_read_particles(self):
         """
@@ -30,7 +51,7 @@ class TestTable(unittest.TestCase):
 
         # Check that all rlnEnabled is 1 and rlnMicrographId is increasing from 1 to 17
         for i, row in enumerate(t1):
-            self.assertEqual(row.rlnEnabled, '1')
+            self.assertEqual(row.rlnEnabled, 1)
             self.assertEqual(int(row.rlnImageId), i + 1)
 
         f1.close()
@@ -76,7 +97,7 @@ class TestTable(unittest.TestCase):
         self._checkColumns(t1, ['rlnMotionModelCoeffsIdx',
                                 'rlnMotionModelCoeff'])
         coeffs = [int(v) for v in t1.getColumnValues('rlnMotionModelCoeffsIdx')]
-        self.assertEqual(coeffs, range(36))
+        self.assertEqual(coeffs, list(range(36)))
 
         f1.close()
 
@@ -95,7 +116,76 @@ class TestTable(unittest.TestCase):
             print("Writing star file to: ", fn)
             t.writeStar(f, singleRow=True)
 
+    def test_iterRows(self):
+        dataFile = testfile('star', 'multibody', 'relion_it017_data.star')
+        table = Table(fileName=dataFile)
+
+        # Let's open again the same file for iteration
+        tableIter = Table()
+        with open(dataFile) as f:
+            tableIter.readStar(f, tableName='Particles', headerOnly=True)
+
+            for c1, c2 in zip(table.getColumns(), tableIter.getColumns()):
+                self.assertEqual(c1, c2, "Column c1 (%s) differs from c2 (%s)"
+                                 % (c1, c2))
+
+                for r1, r2 in zip(table, tableIter):
+                    self.assertEqual(r1, r2)
+
+        # Now try directly with iterRows function
+        for r1, r2 in zip(table,
+                          Table.iterRows(dataFile, tableName='Particles')):
+            self.assertEqual(r1, r2)
+
+        defocusSorted = sorted(float(r.rlnDefocusU) for r in table)
+
+        for d1, row in zip(defocusSorted,
+                          Table.iterRows(dataFile,
+                                         tableName='Particles',
+                                         key=lambda r: r.rlnDefocusU)):
+            self.assertAlmostEqual(d1, row.rlnDefocusU)
+
+        # Test sorting by imageId column, also using getColumnValues and sort()
+        imageIds = table.getColumnValues('rlnImageId')
+        imageIds.sort()
+
+        # Check sorted iteration give the total amount of rows
+        rows = [r for r in Table.iterRows(dataFile,
+                                          tableName='Particles',
+                                          key='rlnImageId')]
+        self.assertEqual(len(imageIds), len(rows))
+
+        for id1, row in zip(imageIds,
+                            Table.iterRows(dataFile,
+                                           tableName='Particles',
+                                           key='rlnImageId')):
+            self.assertEqual(id1, row.rlnImageId)
+
+
+N = 100
+
+def read_metadata():
+    dataFile = testfile('star', 'multibody', 'relion_it017_sampling.star')
+    tables = []
+    for i in range(N):
+        tables.append(Table(fileName=dataFile,
+                            tableName='sampling_directions'))
+    memory_usage()
+
+
+def read_emcore():
+    import emcore as emc
+    dataFile = testfile('star', 'multibody', 'relion_it017_sampling.star')
+    tables = []
+    for i in range(N):
+        t = emc.Table()
+        t.read('sampling_directions', dataFile)
+        tables.append(t)
+    memory_usage()
+
 
 if __name__ == '__main__':
     unittest.main()
+    #read_metadata()
+    #read_emcore()
 
