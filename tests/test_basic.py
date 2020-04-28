@@ -161,6 +161,15 @@ class TestTable(unittest.TestCase):
                                            key='rlnImageId')):
             self.assertEqual(id1, row.rlnImageId)
 
+        def getIter():
+            """ Test a function to get an iterator. """
+            return Table.iterRows(dataFile,
+                                  tableName='Particles', key='rlnImageId')
+
+        iterByIds = getIter()
+        for id1, row in zip(imageIds, iterByIds):
+            self.assertEqual(id1, row.rlnImageId)
+
     def test_removeColumns(self):
         dataFile = testfile('star', 'multibody', 'relion_it017_data.star')
         table = Table(fileName=dataFile)
