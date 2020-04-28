@@ -220,8 +220,59 @@ class Table:
     def size(self):
         return 0 if self.isIter() else len(self._rows)
 
+    def hasColumn(self, colName):
+        """ Return True if a given column exists. """
+        return colName in self._columns
+
+    def getColumn(self, colName):
+        """ Return the column with that name. """
+        return self._columns[colName]
+
     def getColumns(self):
         return self._columns.values()
+
+    def getColumnNames(self):
+        return [c.getName() for c in self.getColumns()]
+
+    def addColumns(self, *args):
+        """ Add one or many columns.
+
+        Each argument should be in the form:
+            columnName=value
+        where value can be a constant or another column.
+
+        Examples:
+            table.addColumns('rlnDefocusU=rlnDefocusV', 'rlnDefocusAngle=0.0')
+        """
+        #TODO: Maybe implement more complex value expression,
+        #TODO: e.g some basic arithmetic operations or functions
+        for a in args:
+            pass
+
+    def removeColumns(self, *args):
+        """ Remove columns with these names. """
+        # Check if any argument is a list and flatten into a single one
+        rmCols = []
+        for a in args:
+            if isinstance(a, list):
+                rmCols.extend(a)
+            else:
+                rmCols.append(a)
+
+        oldColumns = self._columns
+        oldRows = self._rows
+
+        # Remove non desired columns and create again the Row class
+        self._columns = {k: v for k, v in oldColumns.items() if k not in rmCols}
+        self._createRowClass()
+
+        # Recreate rows without these column values
+        cols = self.getColumnNames()
+        self.clearRows()
+
+        for row in oldRows:
+            self._rows.append(self.Row(**{k: getattr(row, k) for k in cols}))
+
 
     def getColumnValues(self, colName):
         """
@@ -233,9 +284,6 @@ class Table:
             raise Exception("Not existing column: %s" % colName)
         return [getattr(row, colName) for row in self._rows]
 
-    def hasColumn(self, colName):
-        """ Return True if a given column exists. """
-        return colName in self._columns
 
     def sort(self, key, reverse=False):
         """ Sort the table in place using the provided key.
@@ -319,19 +367,19 @@ class Table:
         col.setType(colType)
         self._columns[col.getName()] = col
 
-    def _guessTypesFromLine(self, line):
-        def _guess(v):
+    def _guessTypeFromStr(self, strValue):
+        try:
+            int(strValue)
+            return int
+        except ValueError:
             try:
-                int(v)
-                return int
+                float(strValue)
+                return float
             except ValueError:
-                try:
-                    float(v)
-                    return float
-                except ValueError:
-                    return str
+                return str
 
-        return [_guess(v) for v in line.split()]
+    def _guessTypesFromLine(self, line):
+        return [self._guessTypeFromStr(v) for v in line.split()]
 
     def _createColumns(self, columnList, line=None, guessType=False):
         """ Create the columns, optionally, a data line can be passed

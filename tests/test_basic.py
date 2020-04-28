@@ -161,6 +161,69 @@ class TestTable(unittest.TestCase):
                                            key='rlnImageId')):
             self.assertEqual(id1, row.rlnImageId)
 
+    def test_iterRows(self):
+        dataFile = testfile('star', 'multibody', 'relion_it017_data.star')
+        table = Table(fileName=dataFile)
+        
+        expectedCols = [
+            'rlnEnabled',
+            'rlnCoordinateX',
+            'rlnCoordinateY',
+            'rlnMicrographName',
+            'rlnMicrographId',
+            'rlnImageId',
+            'rlnImageName',
+            'rlnDefocusU',
+            'rlnDefocusV',
+            'rlnDefocusAngle',
+            'rlnAmplitudeContrast',
+            'rlnSphericalAberration',
+            'rlnVoltage',
+            'rlnDetectorPixelSize',
+            'rlnRandomSubset',
+            'rlnBeamTiltX',
+            'rlnBeamTiltY',
+            'rlnGroupName',
+            'rlnGroupNumber',
+            'rlnAngleRot',
+            'rlnAngleTilt',
+            'rlnAnglePsi',
+            'rlnOriginX',
+            'rlnOriginY',
+            'rlnClassNumber',
+            'rlnNormCorrection',
+            'rlnLogLikeliContribution',
+            'rlnMaxValueProbDistribution',
+            'rlnNrOfSignificantSamples'
+        ]
+
+        colsToRemove = [
+            'rlnMicrographName',
+            'rlnMicrographId',
+            'rlnImageId',
+            'rlnImageName',
+            'rlnAmplitudeContrast',
+            'rlnSphericalAberration',
+            'rlnVoltage',
+            'rlnDetectorPixelSize',
+            'rlnRandomSubset',
+            'rlnAngleRot',
+            'rlnAngleTilt',
+            'rlnAnglePsi',
+            'rlnOriginX',
+            'rlnOriginY',
+            'rlnLogLikeliContribution',
+            'rlnMaxValueProbDistribution',
+            'rlnNrOfSignificantSamples'
+        ]
+
+        # Check all columns were read properly
+        self.assertEqual(expectedCols, table.getColumnNames())
+
+        table.removeColumns(colsToRemove)
+        self.assertEqual([c for c in expectedCols if c not in colsToRemove],
+                         table.getColumnNames())
+
 
 N = 100
 
