@@ -161,7 +161,7 @@ class TestTable(unittest.TestCase):
                                            key='rlnImageId')):
             self.assertEqual(id1, row.rlnImageId)
 
-    def test_iterRows(self):
+    def test_removeColumns(self):
         dataFile = testfile('star', 'multibody', 'relion_it017_data.star')
         table = Table(fileName=dataFile)
         
@@ -224,8 +224,46 @@ class TestTable(unittest.TestCase):
         self.assertEqual([c for c in expectedCols if c not in colsToRemove],
                          table.getColumnNames())
 
+    def test_addColumns(self):
+        dataFile = testfile('star', 'multibody', 'relion_it017_sampling.star')
+        table = Table(fileName=dataFile, tableName='sampling_directions')
+
+        expectedCols = ['rlnAngleRot',
+                        'rlnAngleTilt',
+                        'rlnAnglePsi',
+                        'rlnExtraAngle1',
+                        'rlnExtraAngle2',
+                        'rlnAnotherConst'
+                        ]
+
+        self.assertEqual(expectedCols[:2], table.getColumnNames())
+
+        table.addColumns('rlnAnglePsi=0.0',
+                         'rlnExtraAngle1=rlnAngleRot',
+                         'rlnExtraAngle2=rlnExtraAngle1',
+                         'rlnAnotherConst=1000')
+
+        self.assertEqual(expectedCols, table.getColumnNames())
+
+        # Check values
+        def _values(colName):
+            return table.getColumnValues(colName)
+
+        for v1, v2, v3 in zip(_values('rlnAngleRot'),
+                              _values('rlnExtraAngle1'),
+                              _values('rlnExtraAngle2')):
+            self.assertAlmostEqual(v1, v2)
+            self.assertAlmostEqual(v1, v3)
+
+        self.assertTrue(all(v == 1000 for v in _values('rlnAnotherConst')))
+
+        tmpOutput = '/tmp/sampling.star'
+        print("Writing to: ", tmpOutput)
+        table.write(tmpOutput, tableName='sampling_directions')
+
 
 N = 100
+
 
 def read_metadata():
     dataFile = testfile('star', 'multibody', 'relion_it017_sampling.star')

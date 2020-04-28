@@ -173,7 +173,7 @@ class Table:
 
         # Write column names
         for col in self._columns.values():
-            outputFile.write("_%s \n" % col)
+            outputFile.write("_%s \n" % col.getName())
 
         # Take a hint for the columns width from the first row
         widths = [len(self._formatValue(v)) for v in self._rows[0]]
@@ -225,8 +225,10 @@ class Table:
         return colName in self._columns
 
     def getColumn(self, colName):
-        """ Return the column with that name. """
-        return self._columns[colName]
+        """ Return the column with that name or
+        None if the column does not exist.
+        """
+        return self._columns.get(colName, None)
 
     def getColumns(self):
         return self._columns.values()
@@ -244,10 +246,46 @@ class Table:
         Examples:
             table.addColumns('rlnDefocusU=rlnDefocusV', 'rlnDefocusAngle=0.0')
         """
-        #TODO: Maybe implement more complex value expression,
-        #TODO: e.g some basic arithmetic operations or functions
+        #TODO:
+        # Maybe implement more complex value expression,
+        # e.g some basic arithmetic operations or functions
+
+        map = {k: k for k in self.getColumnNames()}
+        constSet = set()
+        newCols = OrderedDict()
+
         for a in args:
-            pass
+            colName, right = a.split('=')
+            if self.hasColumn(right):
+                colType = self.getColumn(right).getType()
+                map[colName] = right
+            elif right in newCols:
+                colType = newCols[right].getType()
+                map[colName] = map[right]
+            else:
+                colType = self._guessType(right)
+                value = colType(right)
+                map[colName] = value
+                constSet.add(value)
+
+            newCols[colName] = Column(colName, colType)
+
+        # Update columns and create new Row class
+        self._columns.update(newCols)
+        self._createRowClass()
+
+        # Update rows with new column values
+        oldRows = self._rows
+        self.clearRows()
+
+        def _get(row, colName):
+            # Constants are passed as tuple
+            mapped = map[colName]
+            return mapped if mapped in constSet else getattr(row, mapped)
+
+        colNames = self.getColumnNames()
+        for row in oldRows:
+            self._rows.append(self.Row(**{k: _get(row, k) for k in colNames}))
 
     def removeColumns(self, *args):
         """ Remove columns with these names. """
@@ -367,7 +405,7 @@ class Table:
         col.setType(colType)
         self._columns[col.getName()] = col
 
-    def _guessTypeFromStr(self, strValue):
+    def _guessType(self, strValue):
         try:
             int(strValue)
             return int
@@ -379,7 +417,7 @@ class Table:
                 return str
 
     def _guessTypesFromLine(self, line):
-        return [self._guessTypeFromStr(v) for v in line.split()]
+        return [self._guessType(v) for v in line.split()]
 
     def _createColumns(self, columnList, line=None, guessType=False):
         """ Create the columns, optionally, a data line can be passed
