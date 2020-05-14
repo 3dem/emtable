@@ -121,15 +121,14 @@ class TestTable(unittest.TestCase):
         table = Table(fileName=dataFile)
 
         # Let's open again the same file for iteration
-        tableIter = Table()
         with open(dataFile) as f:
-            tableIter.readStar(f, tableName='Particles', headerOnly=True)
+            tableReader = Table.Reader(f, tableName='Particles')
 
-            for c1, c2 in zip(table.getColumns(), tableIter.getColumns()):
+            for c1, c2 in zip(table.getColumns(), tableReader.getColumns()):
                 self.assertEqual(c1, c2, "Column c1 (%s) differs from c2 (%s)"
                                  % (c1, c2))
 
-                for r1, r2 in zip(table, tableIter):
+                for r1, r2 in zip(table, tableReader):
                     self.assertEqual(r1, r2)
 
         # Now try directly with iterRows function
@@ -228,10 +227,14 @@ class TestTable(unittest.TestCase):
 
         # Check all columns were read properly
         self.assertEqual(expectedCols, table.getColumnNames())
+        # Check also using hasAllColumns method
+        self.assertTrue(table.hasAllColumns(expectedCols))
 
         table.removeColumns(colsToRemove)
         self.assertEqual([c for c in expectedCols if c not in colsToRemove],
                          table.getColumnNames())
+        # Check also using hasAnyColumn method
+        self.assertFalse(table.hasAnyColumn(colsToRemove))
 
     def test_addColumns(self):
         dataFile = testfile('star', 'multibody', 'relion_it017_sampling.star')

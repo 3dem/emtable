@@ -26,7 +26,6 @@ __author__ = 'Jose Miguel de la Rosa Trevin'
 import os
 import sys
 import argparse
-from io import open
 from collections import OrderedDict, namedtuple
 
 
@@ -56,50 +55,94 @@ class Column:
         self._type = colType
 
 
-class Table:
-    """
-    Class to hold and manipulate tabular data for EM processing programs.
-    """
-    def __init__(self, **kwargs):
-        self.clear()
-
-        if 'fileName' in kwargs:
-            if 'columns' in kwargs:
-                raise Exception("Please provide either 'columns' or 'fileName',"
-                                " but not both.")
-            fileName = kwargs.get('fileName')
-            tableName = kwargs.get('tableName', None)
-            self.read(fileName, tableName)
-        elif 'columns' in kwargs:
-            self._createColumns(kwargs['columns'])
-
-    def clear(self):
-        self.Row = None
+class _ColumnsList:
+    def __init__(self):
         self._columns = OrderedDict()
-        self._rows = []
-        self._inputFile = None
-        self._inputLine = None
 
-    def clearRows(self):
-        """ Remove all the rows from the table, but keep its columns. """
-        self._rows = []
+    def printColumns(self):
+        print("Columns: ")
+        for c in self.getColumns():
+            print("   %s" % str(c))
 
-    def addRow(self, *args, **kwargs):
-        self._rows.append(self.Row(*args, **kwargs))
+    def hasColumn(self, colName):
+        """ Return True if a given column exists. """
+        return colName in self._columns
 
-    def readStar(self, inputFile, tableName=None,
-                 headerOnly=False,
-                 guessType=True):
+    def hasAnyColumn(self, colsNames):
+        return any(self.hasColumn(c) for c in colsNames)
+
+    def hasAllColumns(self, colNames):
+        return all(self.hasColumn(c) for c in colNames)
+
+    def getColumn(self, colName):
+        """ Return the column with that name or
+        None if the column does not exist.
         """
-        :param inputFile: Provide the input file from where to read the data.
-            The file pointer will be moved until the last data line of the
-            requested table.
-        :param tableName: star table name
-        :return:
+        return self._columns.get(colName, None)
+
+    def getColumns(self):
+        return self._columns.values()
+
+    def getColumnNames(self):
+        return [c.getName() for c in self.getColumns()]
+
+    # ---------------------- Internal Methods ----------------------------------
+    def _createColumns(self, columnList, line=None, guessType=False):
+        """ Create the columns, optionally, a data line can be passed
+        to infer the Column type.
         """
-        self.clear()
+        self._columns.clear()
+
+        if isinstance(columnList[0], Column):
+            for col in columnList:
+                self._columns[col.getName()] = col
+        else:
+            if line and guessType:
+                typeList = _guessTypesFromLine(line)
+            else:
+                typeList = [str] * len(columnList)
+
+            for colName, colType in zip(columnList, typeList):
+                self._columns[colName] = Column(colName, colType)
+
+        self._createRowClass()
+
+    def _createRowClass(self):
+
+        class Row(namedtuple('_Row', self._columns.keys())):
+            __slots__ = ()
+
+            def hasColumn(self, colName):
+                """ Return True if the row has this column. """
+                return hasattr(self, colName)
+
+            def hasAnyColumn(self, colNames):
+                return any(self.has(c) for c in colNames)
+
+            def hasAllColumns(self, colNames):
+                return all(self.has(c) for c in colNames)
+
+        self.Row = Row
+
+
+class _Reader(_ColumnsList):
+    """ Internal class to handling reading table data. """
+
+    def __init__(self, inputFile, tableName='', guessType=True):
+        """ Create a new Reader given a filename or file as input.
+        Args:
+            inputFile: can be either an string (filename) or file object.
+            tableName: name of the data that will be read.
+            guessType: if True, the columns type is guessed from the first row.
+        """
+        _ColumnsList.__init__(self)
+
+        if isinstance(inputFile, str):
+            self._file = open(inputFile)
+        else:
+            self._file = inputFile
+
         dataStr = 'data_%s' % (tableName or '')
-
         self._findDataLine(inputFile, dataStr)
 
         # Find first column line and parse all columns
@@ -115,38 +158,176 @@ class Table:
             line = inputFile.readline().strip()
 
         self._createColumns(colNames, line, guessType)
+        self._types = [c.getType() for c in self.getColumns()]
+        self._singleRow = not foundLoop
 
-        if not foundLoop:
-            self.addRow(*values)
+        if self._singleRow:
+            self._row = self.__rowFromValues(values)
         else:
-            if headerOnly:
-                self._rows = None  # Mark as an iterator
-                self._inputLine = line
-                self._inputFile = inputFile
-            else:
-                for row in self.__iterRows(line, inputFile):
-                    self._rows.append(row)
+            self._row = self.__rowFromValues(line.split()) if line else None
+
+    def __rowFromValues(self, values):
+
+        try:
+            return self.Row(*[t(v) for t, v in zip(self._types, values)])
+        except Exception as e:
+            print("types: ", self._types)
+            print("values: ", values)
+            raise e
+
+    def getRow(self):
+        """ Get the next Row, it is None when not more rows. """
+        result = self._row
+
+        if self._singleRow:
+            self._row = None
+        else:
+            line = self._file.readline().strip()
+            self._row = self.__rowFromValues(line.split()) if line else None
+
+        return result
+
+    def _findDataLine(self, inputFile, dataStr):
+        """ Raise an exception if the desired data string is not found.
+        Move the line pointer after the desired line if found.
+        """
+        line = inputFile.readline()
+        while line:
+            if line.startswith(dataStr):
+                return line
+            line = inputFile.readline()
+
+        raise Exception("'%s' block was not found" % dataStr)
+
+    def _findLabelLine(self, inputFile):
+        line = ''
+        foundLoop = False
+
+        rawLine = inputFile.readline()
+        while rawLine:
+            if rawLine.startswith('_'):
+                line = rawLine
+                break
+            elif rawLine.startswith('loop_'):
+                foundLoop = True
+            rawLine = inputFile.readline()
+
+        return line.strip(), foundLoop
+
+    def readAll(self):
+        """ Read all rows and return as a list. """
+        return list(iter(self))
+
+    def __iter__(self):
+        row = self.getRow()
+
+        while row is not None:
+            yield row
+            row = self.getRow()
+
+
+class _Writer:
+    """ Write star tables to file. """
+    def __init__(self, inputFile):
+        self._file = inputFile
+        self._format = None
+
+    def writeTableName(self, tableName):
+        self._file.write("\ndata_%s\n\n" % (tableName or ''))
+
+    def writeSingleRow(self, row):
+        m = max([len(c) for c in row._fields]) + 5
+        format = "_{:<%d} {:>10}\n" % m
+        for col, value in row._asdict().items():
+            self._file.write(format.format(col, value))
+        self._file.write('\n\n')
+
+    def writeHeader(self, columns):
+        self._file.write("loop_\n")
+        # Write column names
+        for col in columns.values():
+            self._file.write("_%s \n" % col.getName())
+
+    def writeRow(self, row):
+        if not self._format:
+            self._computeLineFormat([row])
+        self._file.write(self._format.format(*row))
+
+    def writeNewline(self):
+        self._file.write('\n')
+
+    def _computeLineFormat(self, rows):
+        """ Compute format base on row values width. """
+        # Take a hint for the columns width from the first row
+        widths = [len(_formatValue(v)) for v in rows[0]]
+        formats = [_getFormatStr(v) for v in rows[0]]
+        n = len(rows)
+
+        if n > 1:
+            # Check middle and last row, just in case ;)
+            for index in [n // 2, -1]:
+                for i, v in enumerate(rows[index]):
+                    w = len(_formatValue(v))
+                    if w > widths[i]:
+                        widths[i] = w
+
+        self._format = " ".join("{:>%d%s} " % (w + 1, f)
+                                for w, f in zip(widths, formats)) + '\n'
+
+
+class Table(_ColumnsList):
+    """
+    Class to hold and manipulate tabular data for EM processing programs.
+    """
+    Reader = _Reader
+    Writer = _Writer
+
+    def __init__(self, **kwargs):
+        _ColumnsList.__init__(self)
+        self.clear()
+
+        if 'fileName' in kwargs:
+            if 'columns' in kwargs:
+                raise Exception("Please provide either 'columns' or 'fileName',"
+                                " but not both.")
+            fileName = kwargs.get('fileName')
+            tableName = kwargs.get('tableName', None)
+            self.read(fileName, tableName)
+        elif 'columns' in kwargs:
+            self._createColumns(kwargs['columns'])
+
+    def clear(self):
+        self.Row = None
+        self._columns.clear()
+        self._rows = []
+        self._inputFile = None
+        self._inputLine = None
+
+    def clearRows(self):
+        """ Remove all the rows from the table, but keep its columns. """
+        self._rows = []
+
+    def addRow(self, *args, **kwargs):
+        self._rows.append(self.Row(*args, **kwargs))
+
+    def readStar(self, inputFile, tableName=None, guessType=True):
+        """
+        :param inputFile: Provide the input file from where to read the data.
+            The file pointer will be moved until the last data line of the
+            requested table.
+        :param tableName: star table name
+        :return:
+        """
+        self.clear()
+        reader = _Reader(inputFile, tableName=tableName, guessType=guessType)
+        self._columns = reader._columns
+        self._rows = reader.readAll()
 
     def read(self, fileName, tableName=None):
         with open(fileName) as f:
             self.readStar(f, tableName)
 
-    def _formatValue(self, v):
-        return '%0.6f' % v if isinstance(v, float) else str(v)
-
-    def _getFormatStr(self, v):
-        return '.6f' if isinstance(v, float) else ''
-
-    def writeStarLine(self, outputFile, values):
-        """ Function to write a single row into the star file.
-        The function writeStar should have been called first with
-        writeRows=False.
-        """
-        outputFile.write(self.__lineFormat.format(*values))
-        outputFile.write('\n')
-
-    def writeStar(self, outputFile, tableName=None,
-                  singleRow=False, writeRows=True):
+    def writeStar(self, outputFile, tableName=None, singleRow=False):
         """
         Write a Table in Star format to the given file.
         :param outputFile: File handler that should be already opened and
@@ -155,74 +336,47 @@ class Table:
         :param singleRow: If True, don't write loop_, just label - value pairs.
         :param writeRows: write data rows
         """
-        outputFile.write("\ndata_%s\n\n" % (tableName or ''))
+        writer = _Writer(outputFile)
+        writer.writeTableName(tableName)
 
         if self.size() == 0:
             return
 
         if singleRow:
-            m = max([len(c) for c in self._columns.keys()]) + 5
-            lineFormat = "_{:<%d} {:>10}\n" % m
-            row = self._rows[0]
-            for col, value in row._asdict().items():
-                outputFile.write(lineFormat.format(col, value))
-            outputFile.write('\n\n')
-            return
+            writer.writeSingleRow(self._rows[0])
+        else:
+            writer.writeHeader(self._columns)
+            for row in self:
+                writer.writeRow(row)
 
-        outputFile.write("loop_\n")
+        writer.writeNewline()
 
-        # Write column names
-        for col in self._columns.values():
-            outputFile.write("_%s \n" % col.getName())
-
-        # Take a hint for the columns width from the first row
-        widths = [len(self._formatValue(v)) for v in self._rows[0]]
-        formats = [self._getFormatStr(v) for v in self._rows[0]]
-
-        n = len(self)
-        if n > 1:
-            # Check middle and last row, just in case ;)
-            for index in [n//2, -1]:
-                for i, v in enumerate(self._rows[index]):
-                    w = len(self._formatValue(v))
-                    if w > widths[i]:
-                        widths[i] = w
-
-        self.__lineFormat = " ".join("{:>%d%s} " % (w+1, f) for w, f in zip(widths, formats))
-
-        if writeRows:
-            # Write data rows
-            for row in self._rows:
-                self.writeStarLine(outputFile, row)
-
-            outputFile.write('\n')
-
-    def write(self, output_star, tableName=None):
+    def write(self, output_star, tableName=None, singleRow=False):
         with open(output_star, 'w') as output_file:
-            self.writeStar(output_file, tableName)
+            self.writeStar(output_file,
+                           tableName=tableName,
+                           singleRow=singleRow)
+
+    def printStar(self, tableName=None):
+        self.writeStar(sys.stdout, tableName)
+
+    def size(self):
+        return len(self._rows)
 
     def printColumns(self):
         print("Columns: ")
         for c in self.getColumns():
             print("   %s" % str(c))
 
-    def printStar(self, tableName=None):
-        self.writeStar(sys.stdout, tableName)
-
-    def isIter(self):
-        """ Return True if this Table is acting as an Iterator.
-        This is the case when only the header is read and then row
-        will be parsed while iterating, without loading the whole Table
-        in memory.
-        """
-        return self._rows is None
-
-    def size(self):
-        return 0 if self.isIter() else len(self._rows)
-
     def hasColumn(self, colName):
         """ Return True if a given column exists. """
         return colName in self._columns
+
+    def hasAnyColumn(self, colsNames):
+        return any(self.hasColumn(c) for c in colsNames)
+
+    def hasAllColumns(self, colNames):
+        return all(self.hasColumn(c) for c in colNames)
 
     def getColumn(self, colName):
         """ Return the column with that name or
@@ -263,7 +417,7 @@ class Table:
                 colType = newCols[right].getType()
                 map[colName] = map[right]
             else:
-                colType = self._guessType(right)
+                colType = _guessType(right)
                 value = colType(right)
                 map[colName] = value
                 constSet.add(value)
@@ -311,7 +465,6 @@ class Table:
         for row in oldRows:
             self._rows.append(self.Row(**{k: getattr(row, k) for k in cols}))
 
-
     def getColumnValues(self, colName):
         """
         Return the values of a given column
@@ -321,7 +474,6 @@ class Table:
         if colName not in self._columns:
             raise Exception("Not existing column: %s" % colName)
         return [getattr(row, colName) for row in self._rows]
-
 
     def sort(self, key, reverse=False):
         """ Sort the table in place using the provided key.
@@ -347,18 +499,17 @@ class Table:
             tableName = kwargs.get('tableName', None)
 
         # Create a table iterator
-        tableIter = Table()
         with open(fileName) as f:
-            tableIter.readStar(f, tableName, headerOnly=True)
+            reader = _Reader(f, tableName)
             if key is None:
-                for row in tableIter:
+                for row in reader:
                     yield row
             else:
                 if isinstance(key, str):
                     keyFunc = lambda r: getattr(r, key)
                 else:
                     keyFunc = key
-                for row in sorted(tableIter, key=keyFunc, reverse=reverse):
+                for row in sorted(reader, key=keyFunc, reverse=reverse):
                     yield row
 
     def __len__(self):
@@ -372,13 +523,7 @@ class Table:
             line = inputFile.readline().strip()
 
     def __iter__(self):
-        if self.isIter():
-            source = self.__iterRows(self._inputLine, self._inputFile)
-        else:
-            source = self._rows
-
-        for row in source:
-            yield row
+        return iter(self._rows)
 
     def __getitem__(self, item):
         return self._rows[item]
@@ -386,82 +531,31 @@ class Table:
     def __setitem__(self, key, value):
         self._rows[key] = value
 
-    # --------- Internal implementation methods ------------------------
 
-    def _addColumn(self, nameOrTuple, colType):
-        """
-        :param nameOrTuple: This parameter should be either a string or
-            a tuple (string, type).
-        """
-        if isinstance(nameOrTuple, str):
-            col = Column(nameOrTuple)
-        elif isinstance(nameOrTuple, tuple):
-            col = Column(nameOrTuple[0], nameOrTuple[1])
-        elif isinstance(nameOrTuple, Column):
-            col = nameOrTuple
-        else:
-            raise Exception("Invalid input as column, "
-                            "should be either string or tuple.")
-        col.setType(colType)
-        self._columns[col.getName()] = col
+# --------- Helper functions  ------------------------
 
-    def _guessType(self, strValue):
+def _guessType(strValue):
+    try:
+        int(strValue)
+        return int
+    except ValueError:
         try:
-            int(strValue)
-            return int
+            float(strValue)
+            return float
         except ValueError:
-            try:
-                float(strValue)
-                return float
-            except ValueError:
-                return str
+            return str
 
-    def _guessTypesFromLine(self, line):
-        return [self._guessType(v) for v in line.split()]
 
-    def _createColumns(self, columnList, line=None, guessType=False):
-        """ Create the columns, optionally, a data line can be passed
-        to infer the Column type.
-        """
-        self.clear()
-        if line and guessType:
-            typeList = self._guessTypesFromLine(line)
-        else:
-            typeList = [str] * len(columnList)
+def _guessTypesFromLine(line):
+    return [_guessType(v) for v in line.split()]
 
-        for col, colType in zip(columnList, typeList):
-            self._addColumn(col, colType)
-        self._createRowClass()
 
-    def _createRowClass(self):
-        self.Row = namedtuple('Row', [c for c in self._columns.keys()])
+def _formatValue(v):
+    return '%0.6f' % v if isinstance(v, float) else str(v)
 
-    def _findDataLine(self, inputFile, dataStr):
-        """ Raise an exception if the desired data string is not found.
-        Move the line pointer after the desired line if found.
-        """
-        line = inputFile.readline()
-        while line:
-            if line.startswith(dataStr):
-                return line
-            line = inputFile.readline()
 
-        raise Exception("'%s' block was not found" % dataStr)
-
-    def _findLabelLine(self, inputFile):
-        line = ''
-        foundLoop = False
-
-        l = inputFile.readline()
-        while l:
-            if l.startswith('_'):
-                line = l
-                break
-            elif l.startswith('loop_'):
-                foundLoop = True
-            l = inputFile.readline()
-
-        return line.strip(), foundLoop
+def _getFormatStr(v):
+    return '.6f' if isinstance(v, float) else ''
 
 
 if __name__ == '__main__':
