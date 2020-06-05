@@ -117,10 +117,16 @@ class _ColumnsList:
                 return hasattr(self, colName)
 
             def hasAnyColumn(self, colNames):
-                return any(self.has(c) for c in colNames)
+                return any(self.hasColumn(c) for c in colNames)
 
             def hasAllColumns(self, colNames):
-                return all(self.has(c) for c in colNames)
+                return all(self.hasColumn(c) for c in colNames)
+
+            def set(self, key, value):
+                return setattr(self, key, value)
+
+            def get(self, key, default=None):
+                return getattr(self, key, default)
 
         self.Row = Row
 
@@ -143,10 +149,10 @@ class _Reader(_ColumnsList):
             self._file = inputFile
 
         dataStr = 'data_%s' % (tableName or '')
-        self._findDataLine(inputFile, dataStr)
+        self._findDataLine(self._file, dataStr)
 
         # Find first column line and parse all columns
-        line, foundLoop = self._findLabelLine(inputFile)
+        line, foundLoop = self._findLabelLine(self._file)
         colNames = []
         values = []
 
@@ -155,7 +161,7 @@ class _Reader(_ColumnsList):
             colNames.append(parts[0][1:])
             if not foundLoop:
                 values.append(parts[1])
-            line = inputFile.readline().strip()
+            line = self._file.readline().strip()
 
         self._createColumns(colNames, line, guessType)
         self._types = [c.getType() for c in self.getColumns()]
@@ -181,7 +187,7 @@ class _Reader(_ColumnsList):
 
         if self._singleRow:
             self._row = None
-        else:
+        elif result is not None:
             line = self._file.readline().strip()
             self._row = self.__rowFromValues(line.split()) if line else None
 
@@ -231,6 +237,7 @@ class _Writer:
     def __init__(self, inputFile):
         self._file = inputFile
         self._format = None
+        self._columns = None
 
     def writeTableName(self, tableName):
         self._file.write("\ndata_%s\n\n" % (tableName or ''))
@@ -244,29 +251,39 @@ class _Writer:
 
     def writeHeader(self, columns):
         self._file.write("loop_\n")
+        self._columns = columns
         # Write column names
-        for col in columns.values():
+        for col in columns:
             self._file.write("_%s \n" % col.getName())
 
-    def writeRow(self, row):
+    def writeRowValues(self, values):
+        """ Write to file a line for these row values.
+        Order should be ensured that is the same of the expected columns.
+        """
         if not self._format:
-            self._computeLineFormat([row])
-        self._file.write(self._format.format(*row))
+            self._computeLineFormat([values])
+        self._file.write(self._format.format(*values))
+
+    def writeRow(self, row):
+        """ Write to file the line for this row.
+        Row should be an instance of the expected Row class.
+        """
+        self.writeRowValues(row._asdict().values())
 
     def writeNewline(self):
         self._file.write('\n')
 
-    def _computeLineFormat(self, rows):
+    def _computeLineFormat(self, valuesList):
         """ Compute format base on row values width. """
         # Take a hint for the columns width from the first row
-        widths = [len(_formatValue(v)) for v in rows[0]]
-        formats = [_getFormatStr(v) for v in rows[0]]
-        n = len(rows)
+        widths = [len(_formatValue(v)) for v in valuesList[0]]
+        formats = [_getFormatStr(v) for v in valuesList[0]]
+        n = len(valuesList)
 
         if n > 1:
             # Check middle and last row, just in case ;)
             for index in [n // 2, -1]:
-                for i, v in enumerate(rows[index]):
+                for i, v in enumerate(valuesList[index]):
                     w = len(_formatValue(v))
                     if w > widths[i]:
                         widths[i] = w
@@ -345,7 +362,7 @@ class Table(_ColumnsList):
         if singleRow:
             writer.writeSingleRow(self._rows[0])
         else:
-            writer.writeHeader(self._columns)
+            writer.writeHeader(self._columns.values())
             for row in self:
                 writer.writeRow(row)
 
@@ -362,33 +379,6 @@ class Table(_ColumnsList):
 
     def size(self):
         return len(self._rows)
-
-    def printColumns(self):
-        print("Columns: ")
-        for c in self.getColumns():
-            print("   %s" % str(c))
-
-    def hasColumn(self, colName):
-        """ Return True if a given column exists. """
-        return colName in self._columns
-
-    def hasAnyColumn(self, colsNames):
-        return any(self.hasColumn(c) for c in colsNames)
-
-    def hasAllColumns(self, colNames):
-        return all(self.hasColumn(c) for c in colNames)
-
-    def getColumn(self, colName):
-        """ Return the column with that name or
-        None if the column does not exist.
-        """
-        return self._columns.get(colName, None)
-
-    def getColumns(self):
-        return self._columns.values()
-
-    def getColumnNames(self):
-        return [c.getName() for c in self.getColumns()]
 
     def addColumns(self, *args):
         """ Add one or many columns.
@@ -455,7 +445,8 @@ class Table(_ColumnsList):
         oldRows = self._rows
 
         # Remove non desired columns and create again the Row class
-        self._columns = {k: v for k, v in oldColumns.items() if k not in rmCols}
+        self._columns = OrderedDict([(k, v) for k, v in oldColumns.items()
+                                     if k not in rmCols])
         self._createRowClass()
 
         # Recreate rows without these column values
