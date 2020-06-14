@@ -17,6 +17,9 @@
 # * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
 # * 02111-1307  USA
 # *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'delarosatrevin@gmail.com'
+# *
 # **************************************************************************
 
 __version__ = '0.0.6'
