@@ -32,7 +32,7 @@ except ImportError:
     from io import StringIO  # for Python 3
 import unittest
 
-from ..metadata import Table
+from metadata import Table
 from .strings_star_relion import particles_3d_classify, one_micrograph_mc
 
 here = os.path.abspath(os.path.dirname(__file__))
