@@ -1,16 +1,39 @@
+# **************************************************************************
+# *
+# * Authors:  J. M. de la Rosa Trevin (delarosatrevin@gmail.com)
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 3 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'delarosatrevin@gmail.com'
+# *
+# **************************************************************************
 
 import sys
 import os
 import psutil
 
 try:
-    from StringIO import StringIO ## for Python 2
+    from StringIO import StringIO  # for Python 2
 except ImportError:
-    from io import StringIO ## for Python 3
+    from io import StringIO  # for Python 3
 import unittest
 
 from metadata import Table
-from strings_star_relion import particles_3d_classify, one_micrograph_mc
+from .strings_star_relion import particles_3d_classify, one_micrograph_mc
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -301,4 +324,3 @@ if __name__ == '__main__':
     unittest.main()
     #read_metadata()
     #read_emcore()
-
