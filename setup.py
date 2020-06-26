@@ -45,11 +45,11 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 # Fields marked as "Optional" may be commented out.
 
 setup(
-    name='em-metadata',  # Required
-    version='0.0.6',  # Required
+    name='emtable',  # Required
+    version='0.0.7',  # Required
     description='Simple module to deal with EM tabular data (aka metadata)',  # Required
     long_description=long_description,  # Optional
-    url='https://github.com/delarosatrevin/em-metadata',  # Optional
+    url='https://github.com/delarosatrevin/emtable',  # Optional
     author='J.M. De la Rosa Trevin',  # Optional
     author_email='delarosatrevin@gmail.com',  # Optional
     classifiers=[  # Optional
@@ -60,7 +60,7 @@ setup(
     keywords='electron-microscopy cryo-em structural-biology image-processing',  # Optional
     packages=find_packages(),
     project_urls={  # Optional
-        'Bug Reports': 'https://github.com/delarosatrevin/em-metadata/issues',
-        'Source': 'https://github.com/delarosatrevin/em-metadata',
+        'Bug Reports': 'https://github.com/delarosatrevin/emtable/issues',
+        'Source': 'https://github.com/delarosatrevin/emtable',
     },
 )
