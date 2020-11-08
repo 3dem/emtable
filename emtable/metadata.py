@@ -19,7 +19,7 @@
 # *
 # **************************************************************************
 
-__version__ = '0.0.6'
+__version__ = '0.0.7'
 __author__ = 'Jose Miguel de la Rosa Trevin'
 
 
@@ -29,7 +29,7 @@ import argparse
 from collections import OrderedDict, namedtuple
 
 
-class Column:
+class _Column:
     def __init__(self, name, type=None):
         self._name = name
         # Get the type from the LABELS dict, assume str by default
@@ -93,7 +93,7 @@ class _ColumnsList:
         """
         self._columns.clear()
 
-        if isinstance(columnList[0], Column):
+        if isinstance(columnList[0], _Column):
             for col in columnList:
                 self._columns[col.getName()] = col
         else:
@@ -103,7 +103,7 @@ class _ColumnsList:
                 typeList = [str] * len(columnList)
 
             for colName, colType in zip(columnList, typeList):
-                self._columns[colName] = Column(colName, colType)
+                self._columns[colName] = _Column(colName, colType)
 
         self._createRowClass()
 
@@ -298,6 +298,7 @@ class Table(_ColumnsList):
     """
     Reader = _Reader
     Writer = _Writer
+    Column = _Column
 
     def __init__(self, **kwargs):
         _ColumnsList.__init__(self)
@@ -412,7 +413,7 @@ class Table(_ColumnsList):
                 map[colName] = value
                 constSet.add(value)
 
-            newCols[colName] = Column(colName, colType)
+            newCols[colName] = _Column(colName, colType)
 
         # Update columns and create new Row class
         self._columns.update(newCols)

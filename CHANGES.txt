@@ -1,0 +1,2 @@
+0.0.7: exported Column via Table class
+0.0.6: first version for pip
