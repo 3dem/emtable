@@ -46,14 +46,14 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     name='emtable',  # Required
-    version='0.0.7',  # Required
+    version='0.0.8',  # Required
     description='Simple module to deal with EM tabular data (aka metadata)',  # Required
     long_description=long_description,  # Optional
     url='https://github.com/delarosatrevin/emtable',  # Optional
     author='J.M. De la Rosa Trevin',  # Optional
     author_email='delarosatrevin@gmail.com',  # Optional
     classifiers=[  # Optional
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Programming Language :: Python :: 3'
     ],
