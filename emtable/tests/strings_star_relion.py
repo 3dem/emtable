@@ -27,10 +27,6 @@ try:
 except ImportError:
     from io import StringIO  # for Python 3
 
-import unittest
-from metadata import Table
-
-
 particles_3d_classify = """
 
 data_Particles
