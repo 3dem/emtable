@@ -19,7 +19,7 @@
 # *
 # **************************************************************************
 
-__version__ = '0.0.7'
+__version__ = '0.0.8'
 __author__ = 'Jose Miguel de la Rosa Trevin'
 
 
@@ -340,6 +340,7 @@ class Table(_ColumnsList):
         reader = _Reader(inputFile, tableName=tableName, guessType=guessType)
         self._columns = reader._columns
         self._rows = reader.readAll()
+        self.Row = reader.Row
 
     def read(self, fileName, tableName=None):
         with open(fileName) as f:

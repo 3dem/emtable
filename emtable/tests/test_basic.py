@@ -32,8 +32,8 @@ except ImportError:
     from io import StringIO  # for Python 3
 import unittest
 
-from metadata import Table
-from .strings_star_relion import particles_3d_classify, one_micrograph_mc
+from emtable import Table
+from strings_star_relion import particles_3d_classify, one_micrograph_mc
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -295,6 +295,28 @@ class TestTable(unittest.TestCase):
         tmpOutput = '/tmp/sampling.star'
         print("Writing to: ", tmpOutput)
         table.write(tmpOutput, tableName='sampling_directions')
+
+    def test_addRows(self):
+        t1 = Table()
+        f1 = StringIO(particles_3d_classify)
+
+        t1.readStar(f1)
+        nRows = len(t1)
+        lastRow = t1[-1]
+
+        values = [1, 307.000,  195.000, "14sep05c_00024sq_00003hl_00002es.frames.out.mrc",
+                  0, 1, "000001@Runs/000632_XmippProtExtractParticles/extra/14sep05c_00024sq_00003hl_00002es.frames_aligned_mic_DW.stk",
+                  12339.183594, 12294.791992, 99.198835, 0.100000, 2.7000, 300.000, 1, 1, 68.622382, 83.727084,
+                  -61.370416, 1.791925, 6.791925, 4, 0.663729, 28037.624716, 0.973726, 7
+                  ]
+
+        for i in range(1, 4):
+            values[4] = nRows + 1
+            t1.addRow(*values)
+
+        self.assertEqual(nRows + 3, len(t1))
+        newLastRow = t1[-1]
+        self.assertEqual(len(lastRow), len(newLastRow))
 
 
 N = 100
