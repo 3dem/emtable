@@ -46,7 +46,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     name='emtable',  # Required
-    version='0.0.8',  # Required
+    version='0.0.9',  # Required
     description='Simple module to deal with EM tabular data (aka metadata)',  # Required
     long_description=long_description,  # Optional
     url='https://github.com/delarosatrevin/emtable',  # Optional

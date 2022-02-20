@@ -19,7 +19,7 @@
 # *
 # **************************************************************************
 
-__version__ = '0.0.8'
+__version__ = '0.0.9'
 __author__ = 'Jose Miguel de la Rosa Trevin'
 
 
@@ -28,12 +28,14 @@ import sys
 import argparse
 from collections import OrderedDict, namedtuple
 
+from .labels import LABELS_DICT
+
 
 class _Column:
-    def __init__(self, name, type=None):
+    def __init__(self, name, *args):
         self._name = name
         # Get the type from the LABELS dict, assume str by default
-        self._type = type or str
+        self._type = LABELS_DICT.get(name, str)
 
     def __str__(self):
         return 'Column: %s (type: %s)' % (self._name, self._type)
@@ -43,7 +45,7 @@ class _Column:
                 and self.getType() == other.getType())
 
     def __eq__(self, other):
-            return self.__cmp__(other)
+        return self.__cmp__(other)
 
     def getName(self):
         return self._name
@@ -87,23 +89,16 @@ class _ColumnsList:
         return [c.getName() for c in self.getColumns()]
 
     # ---------------------- Internal Methods ----------------------------------
-    def _createColumns(self, columnList, line=None, guessType=False):
-        """ Create the columns, optionally, a data line can be passed
-        to infer the Column type.
-        """
+    def _createColumns(self, columnList):
+        """ Create the columns """
         self._columns.clear()
 
         if isinstance(columnList[0], _Column):
             for col in columnList:
                 self._columns[col.getName()] = col
         else:
-            if line and guessType:
-                typeList = _guessTypesFromLine(line)
-            else:
-                typeList = [str] * len(columnList)
-
-            for colName, colType in zip(columnList, typeList):
-                self._columns[colName] = _Column(colName, colType)
+            for colName in columnList:
+                self._columns[colName] = _Column(colName)
 
         self._createRowClass()
 
@@ -134,12 +129,11 @@ class _ColumnsList:
 class _Reader(_ColumnsList):
     """ Internal class to handling reading table data. """
 
-    def __init__(self, inputFile, tableName='', guessType=True):
+    def __init__(self, inputFile, tableName=''):
         """ Create a new Reader given a filename or file as input.
         Args:
             inputFile: can be either an string (filename) or file object.
             tableName: name of the data that will be read.
-            guessType: if True, the columns type is guessed from the first row.
         """
         _ColumnsList.__init__(self)
 
@@ -163,7 +157,7 @@ class _Reader(_ColumnsList):
                 values.append(parts[1])
             line = self._file.readline().strip()
 
-        self._createColumns(colNames, line, guessType)
+        self._createColumns(colNames)
         self._types = [c.getType() for c in self.getColumns()]
         self._singleRow = not foundLoop
 
@@ -328,7 +322,7 @@ class Table(_ColumnsList):
     def addRow(self, *args, **kwargs):
         self._rows.append(self.Row(*args, **kwargs))
 
-    def readStar(self, inputFile, tableName=None, guessType=True):
+    def readStar(self, inputFile, tableName=None):
         """
         :param inputFile: Provide the input file from where to read the data.
             The file pointer will be moved until the last data line of the
@@ -337,7 +331,7 @@ class Table(_ColumnsList):
         :return:
         """
         self.clear()
-        reader = _Reader(inputFile, tableName=tableName, guessType=guessType)
+        reader = _Reader(inputFile, tableName=tableName)
         self._columns = reader._columns
         self._rows = reader.readAll()
         self.Row = reader.Row
@@ -353,7 +347,6 @@ class Table(_ColumnsList):
             in the position to write.
         :param tableName: The name of the table to write.
         :param singleRow: If True, don't write loop_, just label - value pairs.
-        :param writeRows: write data rows
         """
         writer = _Writer(outputFile)
         writer.writeTableName(tableName)
@@ -392,7 +385,7 @@ class Table(_ColumnsList):
         Examples:
             table.addColumns('rlnDefocusU=rlnDefocusV', 'rlnDefocusAngle=0.0')
         """
-        #TODO:
+        # TODO:
         # Maybe implement more complex value expression,
         # e.g some basic arithmetic operations or functions
 
@@ -403,18 +396,14 @@ class Table(_ColumnsList):
         for a in args:
             colName, right = a.split('=')
             if self.hasColumn(right):
-                colType = self.getColumn(right).getType()
                 map[colName] = right
             elif right in newCols:
-                colType = newCols[right].getType()
                 map[colName] = map[right]
             else:
-                colType = _guessType(right)
-                value = colType(right)
-                map[colName] = value
-                constSet.add(value)
+                map[colName] = right
+                constSet.add(right)
 
-            newCols[colName] = _Column(colName, colType)
+            newCols[colName] = _Column(colName)
 
         # Update columns and create new Row class
         self._columns.update(newCols)
@@ -480,7 +469,7 @@ class Table(_ColumnsList):
         Convenience method to iterate over the rows of a given table.
 
         Args:
-            fileName: the input star filename, it migth contain the '@'
+            fileName: the input star filename, it might contain the '@'
                 to specify the tableName
             key: key function to sort elements, it can also be an string that
                 will be used to retrieve the value of the column with that name.
@@ -526,23 +515,6 @@ class Table(_ColumnsList):
 
 
 # --------- Helper functions  ------------------------
-
-def _guessType(strValue):
-    try:
-        int(strValue)
-        return int
-    except ValueError:
-        try:
-            float(strValue)
-            return float
-        except ValueError:
-            return str
-
-
-def _guessTypesFromLine(line):
-    return [_guessType(v) for v in line.split()]
-
-
 def _formatValue(v):
     return '%0.6f' % v if isinstance(v, float) else str(v)
 

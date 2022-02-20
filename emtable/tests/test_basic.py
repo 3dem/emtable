@@ -88,17 +88,17 @@ class TestTable(unittest.TestCase):
 
         # This is a single-row table (different text format key, value
         t1.readStar(f1, tableName='general')
-        goldValues = [('rlnImageSizeX', '3710'),
-                      ('rlnImageSizeY', '3838'),
-                      ('rlnImageSizeZ', '19'),
+        goldValues = [('rlnImageSizeX', 3710),
+                      ('rlnImageSizeY', 3838),
+                      ('rlnImageSizeZ', 19),
                       ('rlnMicrographMovieName', 'Movies/14sep05c_00024sq_00003hl_00002es.frames.out.mrc'),
-                      ('rlnMicrographBinning', '1.000000'),
-                      ('rlnMicrographOriginalPixelSize', '0.980000'),
-                      ('rlnMicrographDoseRate', '1.000000'),
-                      ('rlnMicrographPreExposure', '0.000000'),
-                      ('rlnVoltage', '300.000000'),
-                      ('rlnMicrographStartFrame', '1'),
-                      ('rlnMotionModelVersion', '1')
+                      ('rlnMicrographBinning', 1.000000),
+                      ('rlnMicrographOriginalPixelSize', 0.980000),
+                      ('rlnMicrographDoseRate', 1.000000),
+                      ('rlnMicrographPreExposure', 0.000000),
+                      ('rlnVoltage', 300.000000),
+                      ('rlnMicrographStartFrame', 1),
+                      ('rlnMotionModelVersion', 1)
                       ]
 
         self._checkColumns(t1, [k for k, v in goldValues])
@@ -162,9 +162,9 @@ class TestTable(unittest.TestCase):
         defocusSorted = sorted(float(r.rlnDefocusU) for r in table)
 
         for d1, row in zip(defocusSorted,
-                          Table.iterRows(dataFile,
-                                         tableName='Particles',
-                                         key=lambda r: r.rlnDefocusU)):
+                           Table.iterRows(dataFile,
+                                          tableName='Particles',
+                                          key=lambda r: r.rlnDefocusU)):
             self.assertAlmostEqual(d1, row.rlnDefocusU)
 
         # Test sorting by imageId column, also using getColumnValues and sort()
@@ -290,7 +290,7 @@ class TestTable(unittest.TestCase):
             self.assertAlmostEqual(v1, v2)
             self.assertAlmostEqual(v1, v3)
 
-        self.assertTrue(all(v == 1000 for v in _values('rlnAnotherConst')))
+        self.assertTrue(all(v == '1000' for v in _values('rlnAnotherConst')))
 
         tmpOutput = '/tmp/sampling.star'
         print("Writing to: ", tmpOutput)
@@ -344,5 +344,5 @@ def read_emcore():
 
 if __name__ == '__main__':
     unittest.main()
-    #read_metadata()
-    #read_emcore()
+    # read_metadata()
+    # read_emcore()
