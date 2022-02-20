@@ -15,3 +15,7 @@ Authors
  * Jose Miguel de la Rosa-Trevín, Department of Biochemistry and Biophysics, Science for Life Laboratory, Stockholm University, Stockholm, Sweden
  * Grigory Sharov, MRC Laboratory of Molecular Biology, Cambridge Biomedical Campus, England
  
+Testing
+-------
+
+``python3 -m unittest discover emtable/tests``

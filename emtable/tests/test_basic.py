@@ -63,19 +63,20 @@ class TestTable(unittest.TestCase):
         """
         Read from a particles .star file
         """
+        print("Reading particles star file...")
         t1 = Table()
         f1 = StringIO(particles_3d_classify)
 
         t1.readStar(f1)
         cols = t1.getColumns()
 
-        self.assertEqual(len(t1), 16)
-        self.assertEqual(len(cols), 25)
+        self.assertEqual(len(t1), 16, "Number of rows check failed!")
+        self.assertEqual(len(cols), 25, "Number of columns check failed!")
 
         # Check that all rlnEnabled is 1 and rlnMicrographId is increasing from 1 to 17
         for i, row in enumerate(t1):
-            self.assertEqual(row.rlnEnabled, 1)
-            self.assertEqual(int(row.rlnImageId), i + 1)
+            self.assertEqual(row.rlnEnabled, 1, "rlnEnabled check failed!")
+            self.assertEqual(int(row.rlnImageId), i + 1, "rlnImageId check failed!")
 
         f1.close()
 
@@ -83,10 +84,12 @@ class TestTable(unittest.TestCase):
         """
         Read an star file with several blocks
         """
+        print("Reading micrograph star file...")
         t1 = Table()
         f1 = StringIO(one_micrograph_mc)
 
         # This is a single-row table (different text format key, value
+        print("\tread data_general ..")
         t1.readStar(f1, tableName='general')
         goldValues = [('rlnImageSizeX', 3710),
                       ('rlnImageSizeY', 3838),
@@ -104,48 +107,52 @@ class TestTable(unittest.TestCase):
         self._checkColumns(t1, [k for k, v in goldValues])
         row = t1[0]
         for k, v in goldValues:
-            self.assertEqual(getattr(row, k), v)
+            self.assertEqual(getattr(row, k), v, "data_general table check failed!")
 
+        print("\tread data_global_shift ..")
         t1.readStar(f1, tableName='global_shift')
         cols = t1.getColumns()
 
-        self.assertEqual(len(t1), 19)
+        self.assertEqual(len(t1), 19, "Number of rows check failed!")
         self._checkColumns(t1, ['rlnMicrographFrameNumber',
                                 'rlnMicrographShiftX',
                                 'rlnMicrographShiftY'])
 
+        print("\tread data_local_motion_model ..")
         t1.readStar(f1, tableName='local_motion_model')
 
-        self.assertEqual(len(t1), 36)
+        self.assertEqual(len(t1), 36, "Number of rows check failed!")
         self._checkColumns(t1, ['rlnMotionModelCoeffsIdx',
                                 'rlnMotionModelCoeff'])
         coeffs = [int(v) for v in t1.getColumnValues('rlnMotionModelCoeffsIdx')]
-        self.assertEqual(coeffs, list(range(36)))
+        self.assertEqual(coeffs, list(range(36)), "rlnMotionModelCoeffsIdx check failed")
 
         f1.close()
 
     def test_write_singleRow(self):
+        fn = '/tmp/test-single-row.star'
+        print("Writing a single row to %s..." % fn)
         t = Table()
         f1 = StringIO(one_micrograph_mc)
         t.readStar(f1, tableName='global_shift')
-        t.writeStar(sys.stdout, tableName='global_shifts', singleRow=True)
+        t.writeStar(sys.stdout, tableName='global_shift', singleRow=True)
 
         t = Table(columns=['rlnImageSizeX',
                            'rlnImageSizeY',
                            'rlnMicrographMovieName'])
         t.addRow(3710, 3838, 'Movies/14sep05c_00024sq_00003hl_00002es.frames.out.mrc')
-        fn = '/tmp/test-single-row.star'
+
         with open(fn, 'w') as f:
-            print("Writing star file to: ", fn)
             t.writeStar(f, singleRow=True)
 
     def test_iterRows(self):
+        print("Checking iterRows...")
         dataFile = testfile('star', 'multibody', 'relion_it017_data.star')
         table = Table(fileName=dataFile)
 
         # Let's open again the same file for iteration
         with open(dataFile) as f:
-            tableReader = Table.Reader(f, tableName='Particles')
+            tableReader = Table.Reader(f, tableName='particles')
 
             for c1, c2 in zip(table.getColumns(), tableReader.getColumns()):
                 self.assertEqual(c1, c2, "Column c1 (%s) differs from c2 (%s)"
@@ -156,14 +163,14 @@ class TestTable(unittest.TestCase):
 
         # Now try directly with iterRows function
         for r1, r2 in zip(table,
-                          Table.iterRows(dataFile, tableName='Particles')):
+                          Table.iterRows(dataFile, tableName='particles')):
             self.assertEqual(r1, r2)
 
         defocusSorted = sorted(float(r.rlnDefocusU) for r in table)
 
         for d1, row in zip(defocusSorted,
                            Table.iterRows(dataFile,
-                                          tableName='Particles',
+                                          tableName='particles',
                                           key=lambda r: r.rlnDefocusU)):
             self.assertAlmostEqual(d1, row.rlnDefocusU)
 
@@ -173,26 +180,27 @@ class TestTable(unittest.TestCase):
 
         # Check sorted iteration give the total amount of rows
         rows = [r for r in Table.iterRows(dataFile,
-                                          tableName='Particles',
+                                          tableName='particles',
                                           key='rlnImageId')]
         self.assertEqual(len(imageIds), len(rows))
 
         for id1, row in zip(imageIds,
                             Table.iterRows(dataFile,
-                                           tableName='Particles',
+                                           tableName='particles',
                                            key='rlnImageId')):
             self.assertEqual(id1, row.rlnImageId)
 
         def getIter():
             """ Test a function to get an iterator. """
             return Table.iterRows(dataFile,
-                                  tableName='Particles', key='rlnImageId')
+                                  tableName='particles', key='rlnImageId')
 
         iterByIds = getIter()
         for id1, row in zip(imageIds, iterByIds):
             self.assertEqual(id1, row.rlnImageId)
 
     def test_removeColumns(self):
+        print("Checking removeColumns...")
         dataFile = testfile('star', 'multibody', 'relion_it017_data.star')
         table = Table(fileName=dataFile)
         
@@ -260,6 +268,8 @@ class TestTable(unittest.TestCase):
         self.assertFalse(table.hasAnyColumn(colsToRemove))
 
     def test_addColumns(self):
+        tmpOutput = '/tmp/sampling.star'
+        print("Checking addColumns to %s..." % tmpOutput)
         dataFile = testfile('star', 'multibody', 'relion_it017_sampling.star')
         table = Table(fileName=dataFile, tableName='sampling_directions')
 
@@ -292,11 +302,10 @@ class TestTable(unittest.TestCase):
 
         self.assertTrue(all(v == '1000' for v in _values('rlnAnotherConst')))
 
-        tmpOutput = '/tmp/sampling.star'
-        print("Writing to: ", tmpOutput)
         table.write(tmpOutput, tableName='sampling_directions')
 
     def test_addRows(self):
+        print("Checking addRows...")
         t1 = Table()
         f1 = StringIO(particles_3d_classify)
 

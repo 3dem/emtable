@@ -1,5 +1,5 @@
 
-data_Particles
+data_particles
 
 loop_ 
 _rlnEnabled #1 
