@@ -73,10 +73,11 @@ class TestTable(unittest.TestCase):
         self.assertEqual(len(t1), 16, "Number of rows check failed!")
         self.assertEqual(len(cols), 25, "Number of columns check failed!")
 
-        # Check that all rlnEnabled is 1 and rlnMicrographId is increasing from 1 to 17
+        # Check that all rlnOpticsGroup is 1 and rlnImageName file is the same
         for i, row in enumerate(t1):
-            self.assertEqual(row.rlnEnabled, 1, "rlnEnabled check failed!")
-            self.assertEqual(int(row.rlnImageId), i + 1, "rlnImageId check failed!")
+            self.assertEqual(row.rlnOpticsGroup, 1, "rlnOpticsGroup check failed!")
+            self.assertEqual(row.rlnImageName.split("@")[1], "Extract/job012/Movies/20170629_00021_frameImage.mrcs",
+                                                             "rlnImageId check failed!")
 
         f1.close()
 
@@ -88,18 +89,19 @@ class TestTable(unittest.TestCase):
         t1 = Table()
         f1 = StringIO(one_micrograph_mc)
 
-        # This is a single-row table (different text format key, value
+        # This is a single-row table (different text format key, value)
         print("\tread data_general ..")
         t1.readStar(f1, tableName='general')
         goldValues = [('rlnImageSizeX', 3710),
                       ('rlnImageSizeY', 3838),
-                      ('rlnImageSizeZ', 19),
-                      ('rlnMicrographMovieName', 'Movies/14sep05c_00024sq_00003hl_00002es.frames.out.mrc'),
+                      ('rlnImageSizeZ', 24),
+                      ('rlnMicrographMovieName', 'Movies/20170629_00027_frameImage.tiff'),
+                      ('rlnMicrographGainName', 'Movies/gain.mrc'),
                       ('rlnMicrographBinning', 1.000000),
-                      ('rlnMicrographOriginalPixelSize', 0.980000),
-                      ('rlnMicrographDoseRate', 1.000000),
+                      ('rlnMicrographOriginalPixelSize', 0.885000),
+                      ('rlnMicrographDoseRate', 1.277000),
                       ('rlnMicrographPreExposure', 0.000000),
-                      ('rlnVoltage', 300.000000),
+                      ('rlnVoltage', 200.000000),
                       ('rlnMicrographStartFrame', 1),
                       ('rlnMotionModelVersion', 1)
                       ]
@@ -113,7 +115,7 @@ class TestTable(unittest.TestCase):
         t1.readStar(f1, tableName='global_shift')
         cols = t1.getColumns()
 
-        self.assertEqual(len(t1), 19, "Number of rows check failed!")
+        self.assertEqual(len(t1), 24, "Number of rows check failed!")
         self._checkColumns(t1, ['rlnMicrographFrameNumber',
                                 'rlnMicrographShiftX',
                                 'rlnMicrographShiftY'])
@@ -147,8 +149,8 @@ class TestTable(unittest.TestCase):
 
     def test_iterRows(self):
         print("Checking iterRows...")
-        dataFile = testfile('star', 'multibody', 'relion_it017_data.star')
-        table = Table(fileName=dataFile)
+        dataFile = testfile('star', 'refine3d', 'run_it016_data.star')
+        table = Table(fileName=dataFile, tableName='particles')
 
         # Let's open again the same file for iteration
         with open(dataFile) as f:
@@ -174,86 +176,71 @@ class TestTable(unittest.TestCase):
                                           key=lambda r: r.rlnDefocusU)):
             self.assertAlmostEqual(d1, row.rlnDefocusU)
 
-        # Test sorting by imageId column, also using getColumnValues and sort()
-        imageIds = table.getColumnValues('rlnImageId')
+        # Test sorting by imageName column, also using getColumnValues and sort()
+        imageIds = table.getColumnValues('rlnImageName')
         imageIds.sort()
 
         # Check sorted iteration give the total amount of rows
         rows = [r for r in Table.iterRows(dataFile,
                                           tableName='particles',
-                                          key='rlnImageId')]
+                                          key='rlnImageName')]
         self.assertEqual(len(imageIds), len(rows))
 
         for id1, row in zip(imageIds,
                             Table.iterRows(dataFile,
                                            tableName='particles',
-                                           key='rlnImageId')):
-            self.assertEqual(id1, row.rlnImageId)
+                                           key='rlnImageName')):
+            self.assertEqual(id1, row.rlnImageName)
 
         def getIter():
             """ Test a function to get an iterator. """
             return Table.iterRows(dataFile,
-                                  tableName='particles', key='rlnImageId')
+                                  tableName='particles', key='rlnImageName')
 
         iterByIds = getIter()
         for id1, row in zip(imageIds, iterByIds):
-            self.assertEqual(id1, row.rlnImageId)
+            self.assertEqual(id1, row.rlnImageName)
 
     def test_removeColumns(self):
         print("Checking removeColumns...")
-        dataFile = testfile('star', 'multibody', 'relion_it017_data.star')
-        table = Table(fileName=dataFile)
+        dataFile = testfile('star', 'refine3d', 'run_it016_data.star')
+        table = Table(fileName=dataFile, tableName='particles')
         
         expectedCols = [
-            'rlnEnabled',
             'rlnCoordinateX',
             'rlnCoordinateY',
-            'rlnMicrographName',
-            'rlnMicrographId',
-            'rlnImageId',
+            'rlnAutopickFigureOfMerit',
+            'rlnClassNumber',
+            'rlnAnglePsi',
             'rlnImageName',
+            'rlnMicrographName',
+            'rlnOpticsGroup',
+            'rlnCtfMaxResolution',
+            'rlnCtfFigureOfMerit',
             'rlnDefocusU',
             'rlnDefocusV',
             'rlnDefocusAngle',
-            'rlnAmplitudeContrast',
-            'rlnSphericalAberration',
-            'rlnVoltage',
-            'rlnDetectorPixelSize',
-            'rlnRandomSubset',
-            'rlnBeamTiltX',
-            'rlnBeamTiltY',
-            'rlnGroupName',
+            'rlnCtfBfactor',
+            'rlnCtfScalefactor',
+            'rlnPhaseShift',
             'rlnGroupNumber',
             'rlnAngleRot',
             'rlnAngleTilt',
-            'rlnAnglePsi',
-            'rlnOriginX',
-            'rlnOriginY',
-            'rlnClassNumber',
+            'rlnOriginXAngst',
+            'rlnOriginYAngst',
             'rlnNormCorrection',
             'rlnLogLikeliContribution',
             'rlnMaxValueProbDistribution',
-            'rlnNrOfSignificantSamples'
+            'rlnNrOfSignificantSamples',
+            'rlnRandomSubset'
         ]
 
         colsToRemove = [
-            'rlnMicrographName',
-            'rlnMicrographId',
-            'rlnImageId',
-            'rlnImageName',
-            'rlnAmplitudeContrast',
-            'rlnSphericalAberration',
-            'rlnVoltage',
-            'rlnDetectorPixelSize',
-            'rlnRandomSubset',
-            'rlnAngleRot',
-            'rlnAngleTilt',
+            'rlnOriginXAngst',
+            'rlnOriginYAngst',
+            'rlnNormCorrection',
             'rlnAnglePsi',
-            'rlnOriginX',
-            'rlnOriginY',
-            'rlnLogLikeliContribution',
-            'rlnMaxValueProbDistribution',
-            'rlnNrOfSignificantSamples'
+            'rlnMaxValueProbDistribution'
         ]
 
         # Check all columns were read properly
@@ -270,7 +257,7 @@ class TestTable(unittest.TestCase):
     def test_addColumns(self):
         tmpOutput = '/tmp/sampling.star'
         print("Checking addColumns to %s..." % tmpOutput)
-        dataFile = testfile('star', 'multibody', 'relion_it017_sampling.star')
+        dataFile = testfile('star', 'refine3d', 'run_it016_sampling.star')
         table = Table(fileName=dataFile, tableName='sampling_directions')
 
         expectedCols = ['rlnAngleRot',
@@ -313,10 +300,12 @@ class TestTable(unittest.TestCase):
         nRows = len(t1)
         lastRow = t1[-1]
 
-        values = [1, 307.000,  195.000, "14sep05c_00024sq_00003hl_00002es.frames.out.mrc",
-                  0, 1, "000001@Runs/000632_XmippProtExtractParticles/extra/14sep05c_00024sq_00003hl_00002es.frames_aligned_mic_DW.stk",
-                  12339.183594, 12294.791992, 99.198835, 0.100000, 2.7000, 300.000, 1, 1, 68.622382, 83.727084,
-                  -61.370416, 1.791925, 6.791925, 4, 0.663729, 28037.624716, 0.973726, 7
+        values = [378.000000, 2826.000000, 5.360625, 4, -87.35289,
+                  "000100@Extract/job012/Movies/20170629_00021_frameImage.mrcs",
+                  "MotionCorr/job002/Movies/20170629_00021_frameImage.mrc",
+                  1, 4.809192, 0.131159, 10864.146484, 10575.793945, 77.995003, 0.000000,
+                  1.000000, 0.000000, 1, 81.264321, 138.043147, 4.959233, -2.12077,
+                  0.798727, 10937.130965, 0.998434, 5
                   ]
 
         for i in range(1, 4):
@@ -332,7 +321,7 @@ N = 100
 
 
 def read_metadata():
-    dataFile = testfile('star', 'multibody', 'relion_it017_sampling.star')
+    dataFile = testfile('star', 'refine3d', 'run_it016_sampling.star')
     tables = []
     for i in range(N):
         tables.append(Table(fileName=dataFile,
@@ -342,7 +331,7 @@ def read_metadata():
 
 def read_emcore():
     import emcore as emc
-    dataFile = testfile('star', 'multibody', 'relion_it017_sampling.star')
+    dataFile = testfile('star', 'refine3d', 'run_it016_sampling.star')
     tables = []
     for i in range(N):
         t = emc.Table()
