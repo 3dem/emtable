@@ -28,14 +28,11 @@ import sys
 import argparse
 from collections import OrderedDict, namedtuple
 
-from .labels import LABELS_DICT
-
 
 class _Column:
-    def __init__(self, name, *args):
+    def __init__(self, name, type=None):
         self._name = name
-        # Get the type from the LABELS dict, assume str by default
-        self._type = LABELS_DICT.get(name, str)
+        self._type = type or str
 
     def __str__(self):
         return 'Column: %s (type: %s)' % (self._name, self._type)
@@ -89,16 +86,23 @@ class _ColumnsList:
         return [c.getName() for c in self.getColumns()]
 
     # ---------------------- Internal Methods ----------------------------------
-    def _createColumns(self, columnList):
-        """ Create the columns """
+    def _createColumns(self, columnList, line=None, guessType=False):
+        """ Create the columns, optionally, a data line can be passed
+        to infer the Column type.
+        """
         self._columns.clear()
 
         if isinstance(columnList[0], _Column):
             for col in columnList:
                 self._columns[col.getName()] = col
         else:
-            for colName in columnList:
-                self._columns[colName] = _Column(colName)
+            if line and guessType:
+                typeList = _guessTypesFromLine(line)
+            else:
+                typeList = [str] * len(columnList)
+
+            for colName, colType in zip(columnList, typeList):
+                self._columns[colName] = _Column(colName, colType)
 
         self._createRowClass()
 
@@ -129,11 +133,12 @@ class _ColumnsList:
 class _Reader(_ColumnsList):
     """ Internal class to handling reading table data. """
 
-    def __init__(self, inputFile, tableName=''):
+    def __init__(self, inputFile, tableName='', guessType=True):
         """ Create a new Reader given a filename or file as input.
         Args:
             inputFile: can be either an string (filename) or file object.
             tableName: name of the data that will be read.
+            guessType: if True, the columns type is guessed from the first row.
         """
         _ColumnsList.__init__(self)
 
@@ -157,7 +162,7 @@ class _Reader(_ColumnsList):
                 values.append(parts[1])
             line = self._file.readline().strip()
 
-        self._createColumns(colNames)
+        self._createColumns(colNames, line, guessType)
         self._types = [c.getType() for c in self.getColumns()]
         self._singleRow = not foundLoop
 
@@ -322,7 +327,7 @@ class Table(_ColumnsList):
     def addRow(self, *args, **kwargs):
         self._rows.append(self.Row(*args, **kwargs))
 
-    def readStar(self, inputFile, tableName=None):
+    def readStar(self, inputFile, tableName=None, guessType=True):
         """
         :param inputFile: Provide the input file from where to read the data.
             The file pointer will be moved until the last data line of the
@@ -331,7 +336,7 @@ class Table(_ColumnsList):
         :return:
         """
         self.clear()
-        reader = _Reader(inputFile, tableName=tableName)
+        reader = _Reader(inputFile, tableName=tableName, guessType=guessType)
         self._columns = reader._columns
         self._rows = reader.readAll()
         self.Row = reader.Row
@@ -396,14 +401,18 @@ class Table(_ColumnsList):
         for a in args:
             colName, right = a.split('=')
             if self.hasColumn(right):
+                colType = self.getColumn(right).getType()
                 map[colName] = right
             elif right in newCols:
+                colType = newCols[right].getType()
                 map[colName] = map[right]
             else:
-                map[colName] = right
-                constSet.add(right)
+                colType = _guessType(right)
+                value = colType(right)
+                map[colName] = value
+                constSet.add(value)
 
-            newCols[colName] = _Column(colName)
+            newCols[colName] = _Column(colName, colType)
 
         # Update columns and create new Row class
         self._columns.update(newCols)
@@ -515,6 +524,23 @@ class Table(_ColumnsList):
 
 
 # --------- Helper functions  ------------------------
+
+def _guessType(strValue):
+    try:
+        int(strValue)
+        return int
+    except ValueError:
+        try:
+            float(strValue)
+            return float
+        except ValueError:
+            return str
+
+
+def _guessTypesFromLine(line):
+    return [_guessType(v) for v in line.split()]
+
+
 def _formatValue(v):
     return '%0.6f' % v if isinstance(v, float) else str(v)
 
