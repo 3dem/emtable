@@ -50,8 +50,8 @@ setup(
     description='Simple module to deal with EM tabular data (aka metadata)',  # Required
     long_description=long_description,  # Optional
     url='https://github.com/delarosatrevin/emtable',  # Optional
-    author='J.M. De la Rosa Trevin',  # Optional
-    author_email='delarosatrevin@gmail.com',  # Optional
+    author='J.M. De la Rosa Trevin, Grigory Sharov',  # Optional
+    author_email='delarosatrevin@gmail.com, gsharov@mrc-lmb.cam.ac.uk',  # Optional
     classifiers=[  # Optional
         'Development Status :: 5 - Production/Stable',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
