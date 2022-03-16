@@ -33,7 +33,7 @@ except ImportError:
 import unittest
 
 from emtable import Table
-from strings_star_relion import particles_3d_classify, one_micrograph_mc
+from strings_star_relion import *
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -92,6 +92,7 @@ class TestTable(unittest.TestCase):
         # This is a single-row table (different text format key, value)
         print("\tread data_general ..")
         t1.readStar(f1, tableName='general')
+
         goldValues = [('rlnImageSizeX', 3710),
                       ('rlnImageSizeY', 3838),
                       ('rlnImageSizeZ', 24),
@@ -287,7 +288,7 @@ class TestTable(unittest.TestCase):
             self.assertAlmostEqual(v1, v2)
             self.assertAlmostEqual(v1, v3)
 
-        self.assertTrue(all(v == '1000' for v in _values('rlnAnotherConst')))
+        self.assertTrue(all(v == 1000 for v in _values('rlnAnotherConst')))
 
         table.write(tmpOutput, tableName='sampling_directions')
 
@@ -315,6 +316,45 @@ class TestTable(unittest.TestCase):
         self.assertEqual(nRows + 3, len(t1))
         newLastRow = t1[-1]
         self.assertEqual(len(lastRow), len(newLastRow))
+
+    def test_types(self):
+        """ Tests when providing types dict instead of guessing the type. """
+
+        def _checkCols(goldValues, t):
+            """ Check expected columns and their types. """
+            for colName, colType in goldValues.items():
+                col = t.getColumn(colName)
+                self.assertIsNotNone(col)
+                self.assertEqual(colType, col.getType())
+
+        # Replace the micName to get a number value for that column
+        micsStr = corrected_micrographs_mc
+        micsStr = micsStr.replace('MotionCorr/job002/Movies/20170629_000', '')
+        micsStr = micsStr.replace('_frameImage.mrc', '')
+
+        f = StringIO(micsStr)
+        t = Table()
+        t.readStar(f, tableName='micrographs')
+
+        goldValues = {'rlnCtfPowerSpectrum': str,
+                      'rlnMicrographName': int,  # should be integer after replace
+                      'rlnMicrographMetadata': str,
+                      'rlnOpticsGroup': int,
+                      'rlnAccumMotionTotal': float,
+                      'rlnAccumMotionEarly': float,
+                      'rlnAccumMotionLate': float
+                      }
+
+        _checkCols(goldValues, t)
+
+        # Now parse again the table but force some columns to be str
+        types = {'rlnMicrographName': str,
+                 'rlnOpticsGroup': str
+                 }
+        f = StringIO(micsStr)
+        t.readStar(f, tableName='micrographs', types=types)
+        goldValues.update(types)
+        _checkCols(goldValues, t)
 
 
 N = 100
