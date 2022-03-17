@@ -1,2 +1,4 @@
+0.0.9: add optional column types dict, update readme and tests for relion 4
+0.0.8: fix appending a row to existing table
 0.0.7: exported Column via Table class
 0.0.6: first version for pip
