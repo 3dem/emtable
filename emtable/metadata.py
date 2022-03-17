@@ -509,11 +509,11 @@ class Table(_ColumnsList):
         if '@' in fileName:
             tableName, fileName = fileName.split('@')
         else:
-            tableName = kwargs.get('tableName', None)
+            tableName = kwargs.pop('tableName', None)
 
         # Create a table iterator
         with open(fileName) as f:
-            reader = _Reader(f, tableName)
+            reader = _Reader(f, tableName, **kwargs)
             if key is None:
                 for row in reader:
                     yield row
