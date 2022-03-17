@@ -1,18 +1,26 @@
 
+# version 30001
+
 data_sampling_general
 
 _rlnIs3DSampling                                    1
 _rlnIs3DTranslationalSampling                       0
 _rlnHealpixOrder                                    7
-_rlnSymmetryGroup                        d2
+_rlnSymmetryGroup                        D2
 _rlnTiltAngleLimit                          -91.00000
 _rlnPsiStep                                  0.468750
-_rlnOffsetRange                              0.760500
-_rlnOffsetStep                               0.507000
+_rlnOffsetRange                              0.560176
+_rlnOffsetStep                               0.373451
 _rlnHelicalOffsetStep                        -1.00000
-_rlnSamplingPerturbInstance                  -0.16530
+_rlnSamplingPerturbInstance                  0.371553
 _rlnSamplingPerturbFactor                    0.500000
+_rlnHealpixOrderOriginal                            2
+_rlnPsiStepOriginal                         15.000000
+_rlnOffsetRangeOriginal                      6.224176
+_rlnOffsetStepOriginal                       2.489670
  
+
+# version 30001
 
 data_sampling_directions
 
