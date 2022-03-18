@@ -505,6 +505,10 @@ class Table(_ColumnsList):
             key: key function to sort elements, it can also be an string that
                 will be used to retrieve the value of the column with that name.
             reverse: If true reverse the sort order.
+            **kwargs:
+                tableName: can be used explicit instead of @ in the filename.
+                types: It can be a dictionary {columnName: columnType} pairs that
+                    allows to specify types for certain columns in the internal reader
         """
         if '@' in fileName:
             tableName, fileName = fileName.split('@')
