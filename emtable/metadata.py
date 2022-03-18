@@ -19,8 +19,8 @@
 # *
 # **************************************************************************
 
-__version__ = '0.0.8'
-__author__ = 'Jose Miguel de la Rosa Trevin'
+__version__ = '0.0.9'
+__author__ = 'Jose Miguel de la Rosa Trevin, Grigory Sharov'
 
 
 import os
@@ -32,7 +32,6 @@ from collections import OrderedDict, namedtuple
 class _Column:
     def __init__(self, name, type=None):
         self._name = name
-        # Get the type from the LABELS dict, assume str by default
         self._type = type or str
 
     def __str__(self):
@@ -43,7 +42,7 @@ class _Column:
                 and self.getType() == other.getType())
 
     def __eq__(self, other):
-            return self.__cmp__(other)
+        return self.__cmp__(other)
 
     def getName(self):
         return self._name
@@ -87,9 +86,16 @@ class _ColumnsList:
         return [c.getName() for c in self.getColumns()]
 
     # ---------------------- Internal Methods ----------------------------------
-    def _createColumns(self, columnList, line=None, guessType=False):
-        """ Create the columns, optionally, a data line can be passed
-        to infer the Column type.
+    def _createColumns(self, columnList, values=None, guessType=False, types=None):
+        """ Create the columns.
+        Args:
+            columnList: it can be either a list of Column objects or just
+                strings representing the column names
+            values: values of a given line to guess type from
+            guessType: If True the type of a given column (if not passed in
+                types) will be guessed from the line of values
+            types: It can be a dictionary {columnName: columnType} pairs that
+                allows to specify types for certain columns.
         """
         self._columns.clear()
 
@@ -97,12 +103,15 @@ class _ColumnsList:
             for col in columnList:
                 self._columns[col.getName()] = col
         else:
-            if line and guessType:
-                typeList = _guessTypesFromLine(line)
-            else:
-                typeList = [str] * len(columnList)
-
-            for colName, colType in zip(columnList, typeList):
+            values = values or []
+            types = types or {}
+            for i, colName in enumerate(columnList):
+                if colName in types:
+                    colType = types[colName]
+                elif guessType and values:
+                    colType = _guessType(values[i])
+                else:
+                    colType = str
                 self._columns[colName] = _Column(colName, colType)
 
         self._createRowClass()
@@ -134,12 +143,14 @@ class _ColumnsList:
 class _Reader(_ColumnsList):
     """ Internal class to handling reading table data. """
 
-    def __init__(self, inputFile, tableName='', guessType=True):
+    def __init__(self, inputFile, tableName='', guessType=True, types=None):
         """ Create a new Reader given a filename or file as input.
         Args:
             inputFile: can be either an string (filename) or file object.
             tableName: name of the data that will be read.
             guessType: if True, the columns type is guessed from the first row.
+            types: It can be a dictionary {columnName: columnType} pairs that
+                allows to specify types for certain columns.
         """
         _ColumnsList.__init__(self)
 
@@ -163,14 +174,20 @@ class _Reader(_ColumnsList):
                 values.append(parts[1])
             line = self._file.readline().strip()
 
-        self._createColumns(colNames, line, guessType)
-        self._types = [c.getType() for c in self.getColumns()]
         self._singleRow = not foundLoop
+
+        if foundLoop:
+            values = line.split() if line else []
+
+        self._createColumns(colNames,
+                            values=values, guessType=guessType, types=types)
+        self._types = [c.getType() for c in self.getColumns()]
+
 
         if self._singleRow:
             self._row = self.__rowFromValues(values)
         else:
-            self._row = self.__rowFromValues(line.split()) if line else None
+            self._row = self.__rowFromValues(values) if values else None
 
     def __rowFromValues(self, values):
 
@@ -328,16 +345,20 @@ class Table(_ColumnsList):
     def addRow(self, *args, **kwargs):
         self._rows.append(self.Row(*args, **kwargs))
 
-    def readStar(self, inputFile, tableName=None, guessType=True):
-        """
-        :param inputFile: Provide the input file from where to read the data.
-            The file pointer will be moved until the last data line of the
-            requested table.
-        :param tableName: star table name
-        :return:
+    def readStar(self, inputFile, tableName=None, guessType=True, types=None):
+        """ Parse a given table from the input star file.
+        Args:
+            inputFile: Provide the input file from where to read the data.
+                The file pointer will be moved until the last data line of the
+                requested table.
+            tableName: star table name
+            guessType: if True, the columns type is guessed from the first row.
+            types: It can be a dictionary {columnName: columnType} pairs that
+                allows to specify types for certain columns.
         """
         self.clear()
-        reader = _Reader(inputFile, tableName=tableName, guessType=guessType)
+        reader = _Reader(inputFile,
+                         tableName=tableName, guessType=guessType, types=types)
         self._columns = reader._columns
         self._rows = reader.readAll()
         self.Row = reader.Row
@@ -347,13 +368,12 @@ class Table(_ColumnsList):
             self.readStar(f, tableName)
 
     def writeStar(self, outputFile, tableName=None, singleRow=False):
-        """
-        Write a Table in Star format to the given file.
-        :param outputFile: File handler that should be already opened and
-            in the position to write.
-        :param tableName: The name of the table to write.
-        :param singleRow: If True, don't write loop_, just label - value pairs.
-        :param writeRows: write data rows
+        """ Write a Table in Star format to the given file.
+        Args:
+            outputFile: File handler that should be already opened and
+                in the position to write.
+            tableName: The name of the table to write.
+            singleRow: If True, don't write loop_, just label - value pairs.
         """
         writer = _Writer(outputFile)
         writer.writeTableName(tableName)
@@ -392,7 +412,7 @@ class Table(_ColumnsList):
         Examples:
             table.addColumns('rlnDefocusU=rlnDefocusV', 'rlnDefocusAngle=0.0')
         """
-        #TODO:
+        # TODO:
         # Maybe implement more complex value expression,
         # e.g some basic arithmetic operations or functions
 
@@ -480,20 +500,24 @@ class Table(_ColumnsList):
         Convenience method to iterate over the rows of a given table.
 
         Args:
-            fileName: the input star filename, it migth contain the '@'
+            fileName: the input star filename, it might contain the '@'
                 to specify the tableName
             key: key function to sort elements, it can also be an string that
                 will be used to retrieve the value of the column with that name.
             reverse: If true reverse the sort order.
+            **kwargs:
+                tableName: can be used explicit instead of @ in the filename.
+                types: It can be a dictionary {columnName: columnType} pairs that
+                    allows to specify types for certain columns in the internal reader
         """
         if '@' in fileName:
             tableName, fileName = fileName.split('@')
         else:
-            tableName = kwargs.get('tableName', None)
+            tableName = kwargs.pop('tableName', None)
 
         # Create a table iterator
         with open(fileName) as f:
-            reader = _Reader(f, tableName)
+            reader = _Reader(f, tableName, **kwargs)
             if key is None:
                 for row in reader:
                     yield row
