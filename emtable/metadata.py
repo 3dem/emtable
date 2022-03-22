@@ -19,7 +19,6 @@
 # *
 # **************************************************************************
 
-__version__ = '0.0.10'
 __author__ = 'Jose Miguel de la Rosa Trevin, Grigory Sharov'
 
 
