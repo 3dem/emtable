@@ -225,12 +225,12 @@ class _Reader(_ColumnsList):
         line = ''
         foundLoop = False
 
-        rawLine = inputFile.readline().strip()
+        rawLine = inputFile.readline()
         while rawLine:
-            if rawLine.startswith('_'):
-                line = rawLine
+            line = rawLine.strip()
+            if line.startswith('_'):
                 break
-            elif rawLine.startswith('loop_'):
+            elif line.startswith('loop_'):
                 foundLoop = True
             rawLine = inputFile.readline()
 
