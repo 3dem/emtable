@@ -132,6 +132,12 @@ class TestTable(unittest.TestCase):
 
         f1.close()
 
+        print("Reading xmipp star file...")
+        dataFile = testfile('star', 'xmipp.star')
+        t1 = Table(fileName=dataFile, tableName="properties")
+        self._checkColumns(t1, ['micrograph', 'color', 'particleSize', 'manualParticlesNum'])
+        self.assertEqual(t1[0].micrograph, "F_rct_u_3015")
+
     def test_write_singleRow(self):
         fn = '/tmp/test-single-row.star'
         print("Writing a single row to %s..." % fn)

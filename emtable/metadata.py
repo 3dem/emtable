@@ -182,7 +182,6 @@ class _Reader(_ColumnsList):
                             values=values, guessType=guessType, types=types)
         self._types = [c.getType() for c in self.getColumns()]
 
-
         if self._singleRow:
             self._row = self.__rowFromValues(values)
         else:
@@ -205,6 +204,7 @@ class _Reader(_ColumnsList):
             self._row = None
         elif result is not None:
             line = self._file.readline().strip()
+            line = None if line.startswith("data_") else line
             self._row = self.__rowFromValues(line.split()) if line else None
 
         return result
@@ -225,7 +225,7 @@ class _Reader(_ColumnsList):
         line = ''
         foundLoop = False
 
-        rawLine = inputFile.readline()
+        rawLine = inputFile.readline().strip()
         while rawLine:
             if rawLine.startswith('_'):
                 line = rawLine
@@ -234,7 +234,7 @@ class _Reader(_ColumnsList):
                 foundLoop = True
             rawLine = inputFile.readline()
 
-        return line.strip(), foundLoop
+        return line, foundLoop
 
     def readAll(self):
         """ Read all rows and return as a list. """
