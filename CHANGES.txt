@@ -1,3 +1,7 @@
+0.0.11:
+    - remove space at the start of a line
+    - detect emd of a table when data_ is encountered
+0.0.10: add github actions workflow
 0.0.9: add optional column types dict, update readme and tests for relion 4
 0.0.8: fix appending a row to existing table
 0.0.7: exported Column via Table class

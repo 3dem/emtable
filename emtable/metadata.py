@@ -204,6 +204,7 @@ class _Reader(_ColumnsList):
             self._row = None
         elif result is not None:
             line = self._file.readline().strip()
+            line = None if line.startswith("data_") else line
             self._row = self.__rowFromValues(line.split()) if line else None
 
         return result
