@@ -182,7 +182,6 @@ class _Reader(_ColumnsList):
                             values=values, guessType=guessType, types=types)
         self._types = [c.getType() for c in self.getColumns()]
 
-
         if self._singleRow:
             self._row = self.__rowFromValues(values)
         else:
@@ -227,10 +226,10 @@ class _Reader(_ColumnsList):
 
         rawLine = inputFile.readline()
         while rawLine:
-            if rawLine.startswith('_'):
+            if rawLine.lstrip().startswith('_'):
                 line = rawLine
                 break
-            elif rawLine.startswith('loop_'):
+            elif rawLine.lstrip().startswith('loop_'):
                 foundLoop = True
             rawLine = inputFile.readline()
 
