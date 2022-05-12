@@ -225,16 +225,16 @@ class _Reader(_ColumnsList):
         line = ''
         foundLoop = False
 
-        rawLine = inputFile.readline()
+        rawLine = inputFile.readline().strip()
         while rawLine:
-            if rawLine.lstrip().startswith('_'):
+            if rawLine.startswith('_'):
                 line = rawLine
                 break
-            elif rawLine.lstrip().startswith('loop_'):
+            elif rawLine.startswith('loop_'):
                 foundLoop = True
             rawLine = inputFile.readline()
 
-        return line.strip(), foundLoop
+        return line, foundLoop
 
     def readAll(self):
         """ Read all rows and return as a list. """
