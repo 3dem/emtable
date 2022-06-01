@@ -192,8 +192,9 @@ class _Reader(_ColumnsList):
         try:
             return self.Row(*[t(v) for t, v in zip(self._types, values)])
         except Exception as e:
-            print("types: ", self._types)
-            print("values: ", values)
+            print("Error when parsing column types:")
+            for i in zip(self._columns.keys(), self._types, values):
+                print(i)
             raise e
 
     def getRow(self):
@@ -324,9 +325,9 @@ class Table(_ColumnsList):
             if 'columns' in kwargs:
                 raise Exception("Please provide either 'columns' or 'fileName',"
                                 " but not both.")
-            fileName = kwargs.get('fileName')
-            tableName = kwargs.get('tableName', None)
-            self.read(fileName, tableName)
+            fileName = kwargs.pop('fileName')
+            tableName = kwargs.pop('tableName', None)
+            self.read(fileName, tableName, **kwargs)
         elif 'columns' in kwargs:
             self._createColumns(kwargs['columns'])
 
@@ -362,9 +363,9 @@ class Table(_ColumnsList):
         self._rows = reader.readAll()
         self.Row = reader.Row
 
-    def read(self, fileName, tableName=None):
+    def read(self, fileName, tableName=None, **kwargs):
         with open(fileName) as f:
-            self.readStar(f, tableName)
+            self.readStar(f, tableName, **kwargs)
 
     def writeStar(self, outputFile, tableName=None, singleRow=False):
         """ Write a Table in Star format to the given file.
