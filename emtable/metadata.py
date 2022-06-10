@@ -142,7 +142,7 @@ class _ColumnsList:
 class _Reader(_ColumnsList):
     """ Internal class to handling reading table data. """
 
-    def __init__(self, inputFile, tableName='', guessType=True, types=None):
+    def __init__(self, inputFile, tableName='', guessType=True, types=None, shlex=False):
         """ Create a new Reader given a filename or file as input.
         Args:
             inputFile: can be either an string (filename) or file object.
@@ -161,13 +161,15 @@ class _Reader(_ColumnsList):
         dataStr = 'data_%s' % (tableName or '')
         self._findDataLine(self._file, dataStr)
 
+        self._shlex = shlex
+
         # Find first column line and parse all columns
         line, foundLoop = self._findLabelLine(self._file)
         colNames = []
         values = []
 
         while line.startswith('_'):
-            parts = line.split()
+            parts = _split(line, shlex=self._shlex)
             colNames.append(parts[0][1:])
             if not foundLoop:
                 values.append(parts[1])
@@ -176,7 +178,7 @@ class _Reader(_ColumnsList):
         self._singleRow = not foundLoop
 
         if foundLoop:
-            values = line.split() if line else []
+            values = _split(line, shlex=self._shlex) if line else []
 
         self._createColumns(colNames,
                             values=values, guessType=guessType, types=types)
@@ -197,7 +199,7 @@ class _Reader(_ColumnsList):
                 print(i)
             raise e
 
-    def getRow(self):
+    def getRow(self, shlex=False):
         """ Get the next Row, it is None when not more rows. """
         result = self._row
 
@@ -206,7 +208,7 @@ class _Reader(_ColumnsList):
         elif result is not None:
             line = self._file.readline().strip()
             line = None if line.startswith("data_") else line
-            self._row = self.__rowFromValues(line.split()) if line else None
+            self._row = self.__rowFromValues(_split(line, shlex=self._shlex)) if line else None
 
         return result
 
@@ -242,7 +244,7 @@ class _Reader(_ColumnsList):
         return list(iter(self))
 
     def __iter__(self):
-        row = self.getRow()
+        row = self.getRow(shlex=self._shlex)
 
         while row is not None:
             yield row
@@ -345,7 +347,7 @@ class Table(_ColumnsList):
     def addRow(self, *args, **kwargs):
         self._rows.append(self.Row(*args, **kwargs))
 
-    def readStar(self, inputFile, tableName=None, guessType=True, types=None):
+    def readStar(self, inputFile, tableName=None, guessType=True, types=None, shlex=False):
         """ Parse a given table from the input star file.
         Args:
             inputFile: Provide the input file from where to read the data.
@@ -356,9 +358,10 @@ class Table(_ColumnsList):
             types: It can be a dictionary {columnName: columnType} pairs that
                 allows to specify types for certain columns.
         """
+        self._shlex = shlex
         self.clear()
         reader = _Reader(inputFile,
-                         tableName=tableName, guessType=guessType, types=types)
+                         tableName=tableName, guessType=guessType, types=types, shlex=self._shlex)
         self._columns = reader._columns
         self._rows = reader.readAll()
         self.Row = reader.Row
@@ -536,7 +539,7 @@ class Table(_ColumnsList):
         """ Internal method to iter through rows. """
         typeList = [c.getType() for c in self.getColumns()]
         while line:
-            yield self.Row(*[t(v) for t, v in zip(typeList, line.split())])
+            yield self.Row(*[t(v) for t, v in zip(typeList, _split(line, shlex=self._shlex))])
             line = inputFile.readline().strip()
 
     def __iter__(self):
@@ -563,8 +566,8 @@ def _guessType(strValue):
             return str
 
 
-def _guessTypesFromLine(line):
-    return [_guessType(v) for v in line.split()]
+def _guessTypesFromLine(line, shlex=False):
+    return [_guessType(v) for v in _split(line, shlex=shlex)]
 
 
 def _formatValue(v):
@@ -573,6 +576,19 @@ def _formatValue(v):
 
 def _getFormatStr(v):
     return '.6f' if isinstance(v, float) else ''
+
+
+def _split(string, shlex=False):
+    if shlex:
+        try:
+            import shlex
+        except ImportError:
+            raise ImportError('Use of the shlex option requires the '
+                              'installation of the shlex package.')
+        else:
+            return shlex.split(string)
+    else:
+        return string.split()
 
 
 if __name__ == '__main__':
