@@ -466,7 +466,7 @@ class Table(_ColumnsList):
         oldColumns = self._columns
         oldRows = self._rows
 
-        # Remove non desired columns and create again the Row class
+        # Remove non-desired columns and create again the Row class
         self._columns = OrderedDict([(k, v) for k, v in oldColumns.items()
                                      if k not in rmCols])
         self._createRowClass()
@@ -485,7 +485,7 @@ class Table(_ColumnsList):
         :return: A list with all values of that column.
         """
         if colName not in self._columns:
-            raise Exception("Not existing column: %s" % colName)
+            raise Exception("Non-existing column: %s" % colName)
         return [getattr(row, colName) for row in self._rows]
 
     def sort(self, key, reverse=False):
