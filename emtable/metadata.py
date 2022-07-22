@@ -199,16 +199,19 @@ class _Reader(_ColumnsList):
                 print(i)
             raise e
 
-    def getRow(self, shlex=False):
+    def getRow(self, shlex=None):
         """ Get the next Row, it is None when not more rows. """
         result = self._row
+
+        if shlex is None:
+            shlex = self._shlex
 
         if self._singleRow:
             self._row = None
         elif result is not None:
             line = self._file.readline().strip()
             line = None if line.startswith("data_") else line
-            self._row = self.__rowFromValues(_split(line, shlex=self._shlex)) if line else None
+            self._row = self.__rowFromValues(_split(line, shlex=shlex)) if line else None
 
         return result
 
@@ -244,7 +247,7 @@ class _Reader(_ColumnsList):
         return list(iter(self))
 
     def __iter__(self):
-        row = self.getRow(shlex=self._shlex)
+        row = self.getRow()
 
         while row is not None:
             yield row
