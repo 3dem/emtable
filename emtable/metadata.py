@@ -150,7 +150,9 @@ class _Reader(_ColumnsList):
             guessType: if True, the columns type is guessed from the first row.
             types: It can be a dictionary {columnName: columnType} pairs that
                 allows to specify types for certain columns.
+            shlex: if True, use shlex split instead of default string split
         """
+        self._shlex = shlex
         _ColumnsList.__init__(self)
 
         if isinstance(inputFile, str):
@@ -211,7 +213,7 @@ class _Reader(_ColumnsList):
         elif result is not None:
             line = self._file.readline().strip()
             line = None if line.startswith("data_") else line
-            self._row = self.__rowFromValues(_split(line, shlex=shlex)) if line else None
+            self._row = self.__rowFromValues(_split(line, shlex=self._shlex)) if line else None
 
         return result
 
@@ -325,6 +327,7 @@ class Table(_ColumnsList):
     def __init__(self, **kwargs):
         _ColumnsList.__init__(self)
         self.clear()
+        self._shlex = kwargs.pop('shlex', False)
 
         if 'fileName' in kwargs:
             if 'columns' in kwargs:
@@ -363,8 +366,8 @@ class Table(_ColumnsList):
         """
         self._shlex = shlex
         self.clear()
-        reader = _Reader(inputFile,
-                         tableName=tableName, guessType=guessType, types=types, shlex=self._shlex)
+        reader = _Reader(inputFile, tableName=tableName, guessType=guessType,
+                         types=types, shlex=self._shlex)
         self._columns = reader._columns
         self._rows = reader.readAll()
         self.Row = reader.Row
@@ -569,10 +572,6 @@ def _guessType(strValue):
             return str
 
 
-def _guessTypesFromLine(line, shlex=False):
-    return [_guessType(v) for v in _split(line, shlex=shlex)]
-
-
 def _formatValue(v):
     return '%0.6f' % v if isinstance(v, float) else str(v)
 
@@ -602,8 +601,6 @@ if __name__ == '__main__':
 
     add("-l", "--limit", type=int, default=0,
         help="Limit the number of rows processed, useful for testing. ")
-
-    # add("-v", "--verbosity", action="count", default=0)
 
     args = parser.parse_args()
 

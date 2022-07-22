@@ -138,6 +138,11 @@ class TestTable(unittest.TestCase):
         self._checkColumns(t1, ['micrograph', 'color', 'particleSize', 'manualParticlesNum'])
         self.assertEqual(t1[0].micrograph, "F_rct_u_3015")
 
+        print("Reading xmipp-nma star file with shlex=True...")
+        dataFile = testfile('star', 'nma.star')
+        t2 = Table(fileName=dataFile, shlex=True)
+        self.assertEqual(t2[0].nmaDisplacements, '    -2.733360    -2.468260    -0.090721 ')
+
     def test_write_singleRow(self):
         fn = '/tmp/test-single-row.star'
         print("Writing a single row to %s..." % fn)
