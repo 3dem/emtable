@@ -583,13 +583,8 @@ def _getFormatStr(v):
 
 def _split(string, shlex=False):
     if shlex:
-        try:
-            import shlex
-        except ImportError:
-            raise ImportError('Use of the shlex option requires the '
-                              'installation of the shlex package.')
-        else:
-            return shlex.split(string)
+        import shlex
+        return shlex.split(string)
     else:
         return string.split()
 
