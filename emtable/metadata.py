@@ -163,8 +163,6 @@ class _Reader(_ColumnsList):
         dataStr = 'data_%s' % (tableName or '')
         self._findDataLine(self._file, dataStr)
 
-        self._shlex = shlex
-
         # Find first column line and parse all columns
         line, foundLoop = self._findLabelLine(self._file)
         colNames = []
@@ -201,12 +199,9 @@ class _Reader(_ColumnsList):
                 print(i)
             raise e
 
-    def getRow(self, shlex=None):
+    def getRow(self):
         """ Get the next Row, it is None when not more rows. """
         result = self._row
-
-        if shlex is None:
-            shlex = self._shlex
 
         if self._singleRow:
             self._row = None
@@ -353,7 +348,7 @@ class Table(_ColumnsList):
     def addRow(self, *args, **kwargs):
         self._rows.append(self.Row(*args, **kwargs))
 
-    def readStar(self, inputFile, tableName=None, guessType=True, types=None, shlex=False):
+    def readStar(self, inputFile, tableName=None, guessType=True, types=None):
         """ Parse a given table from the input star file.
         Args:
             inputFile: Provide the input file from where to read the data.
@@ -364,7 +359,6 @@ class Table(_ColumnsList):
             types: It can be a dictionary {columnName: columnType} pairs that
                 allows to specify types for certain columns.
         """
-        self._shlex = shlex
         self.clear()
         reader = _Reader(inputFile, tableName=tableName, guessType=guessType,
                          types=types, shlex=self._shlex)
