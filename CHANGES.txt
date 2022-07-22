@@ -1,3 +1,5 @@
+0.0.13: pass kwargs to Table()
+0.0.12: bugfix introduced in 0.0.11
 0.0.11:
     - remove space at the start of a line
     - detect emd of a table when data_ is encountered

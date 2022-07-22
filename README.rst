@@ -23,18 +23,17 @@ Testing
 Examples
 --------
 
-Each table in STAR file usually has a *data\_* prefix. You don't need to specify it, only the remaining table name is required. You can use either method below:
-
-* option 1: ``Table(fileName=modelStar, tableName='perframe_bfactors')``
-* option 2: ``Table("perframe_bfactors@" + modelStar)``
-
-Be aware that from Relion 3.1 particles table name has been changed from "data_Particles" to "data_particles".
-
 To start using the package, simply do:
 
 .. code-block:: python
 
     from emtable import Table
+
+Each table in STAR file usually has a *data\_* prefix. You only need to specify the remaining table name:
+
+``Table(fileName=modelStar, tableName='perframe_bfactors')``
+
+Be aware that from Relion 3.1 particles table name has been changed from "data_Particles" to "data_particles".
 
 Reading
 #######
