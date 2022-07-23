@@ -25,6 +25,7 @@ __author__ = 'Jose Miguel de la Rosa Trevin, Grigory Sharov'
 import os
 import sys
 import argparse
+import shlex
 from collections import OrderedDict, namedtuple
 
 
@@ -145,7 +146,7 @@ class _Reader(_ColumnsList):
     def __init__(self, inputFile, tableName='', guessType=True, types=None, shlex=False):
         """ Create a new Reader given a filename or file as input.
         Args:
-            inputFile: can be either an string (filename) or file object.
+            inputFile: can be either a string (filename) or file object.
             tableName: name of the data that will be read.
             guessType: if True, the columns type is guessed from the first row.
             types: It can be a dictionary {columnName: columnType} pairs that
@@ -169,7 +170,7 @@ class _Reader(_ColumnsList):
         values = []
 
         while line.startswith('_'):
-            parts = _split(line, shlex=self._shlex)
+            parts = _split(line, useshlex=self._shlex)
             colNames.append(parts[0][1:])
             if not foundLoop:
                 values.append(parts[1])
@@ -178,7 +179,7 @@ class _Reader(_ColumnsList):
         self._singleRow = not foundLoop
 
         if foundLoop:
-            values = _split(line, shlex=self._shlex) if line else []
+            values = _split(line, useshlex=self._shlex) if line else []
 
         self._createColumns(colNames,
                             values=values, guessType=guessType, types=types)
@@ -208,7 +209,7 @@ class _Reader(_ColumnsList):
         elif result is not None:
             line = self._file.readline().strip()
             line = None if line.startswith("data_") else line
-            self._row = self.__rowFromValues(_split(line, shlex=self._shlex)) if line else None
+            self._row = self.__rowFromValues(_split(line, useshlex=self._shlex)) if line else None
 
         return result
 
@@ -294,7 +295,7 @@ class _Writer:
 
     def _computeLineFormat(self, valuesList):
         """ Compute format base on row values width. """
-        # Take a hint for the columns width from the first row
+        # Take a hint for the column's width from the first row
         widths = [len(_formatValue(v)) for v in valuesList[0]]
         formats = [_getFormatStr(v) for v in valuesList[0]]
         n = len(valuesList)
@@ -505,7 +506,7 @@ class Table(_ColumnsList):
         Args:
             fileName: the input star filename, it might contain the '@'
                 to specify the tableName
-            key: key function to sort elements, it can also be an string that
+            key: key function to sort elements, it can also be a string that
                 will be used to retrieve the value of the column with that name.
             reverse: If true reverse the sort order.
             **kwargs:
@@ -539,7 +540,7 @@ class Table(_ColumnsList):
         """ Internal method to iter through rows. """
         typeList = [c.getType() for c in self.getColumns()]
         while line:
-            yield self.Row(*[t(v) for t, v in zip(typeList, _split(line, shlex=self._shlex))])
+            yield self.Row(*[t(v) for t, v in zip(typeList, _split(line, useshlex=self._shlex))])
             line = inputFile.readline().strip()
 
     def __iter__(self):
@@ -574,9 +575,8 @@ def _getFormatStr(v):
     return '.6f' if isinstance(v, float) else ''
 
 
-def _split(string, shlex=False):
-    if shlex:
-        import shlex
+def _split(string, useshlex=False):
+    if useshlex:
         return shlex.split(string)
     else:
         return string.split()

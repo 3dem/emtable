@@ -83,7 +83,7 @@ class TestTable(unittest.TestCase):
 
     def test_read_blocks(self):
         """
-        Read an star file with several blocks
+        Read a star file with several blocks
         """
         print("Reading micrograph star file...")
         t1 = Table()
