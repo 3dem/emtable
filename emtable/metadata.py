@@ -22,6 +22,7 @@
 __author__ = 'Jose Miguel de la Rosa Trevin, Grigory Sharov'
 
 
+import re
 import os
 import sys
 import argparse
@@ -169,18 +170,18 @@ class _Reader(_ColumnsList):
         values = []
 
         while line.startswith('_'):
-            parts = line.split()
+            self._shlex = bool(re.search(r'\'|\"+', line))
+            parts = _split(line, useshlex=self._shlex)
             colNames.append(parts[0][1:])
-            self._shlex = ("'" or '"') in parts
             if not foundLoop:
-                values.append(_split(line, useshlex=self._shlex)[1])
+                values.append(parts[1])
             line = self._file.readline().strip()
 
         self._singleRow = not foundLoop
 
         if foundLoop:
             if line:
-                self._shlex = ("'" or '"') in line.split()
+                self._shlex = bool(re.search(r'\'|\"+', line))
                 values = _split(line, useshlex=self._shlex)
             else:
                 values = []

@@ -141,11 +141,13 @@ class TestTable(unittest.TestCase):
         print("Reading xmipp-nma star file with quoted values")
         dataFile = testfile('star', 'nma.star')
         t2 = Table(fileName=dataFile, tableName="noname2")
-        t2.printStar("noname2")
         self.assertEqual(t2[0].nmaDisplacements, '   -32.927700   -32.664600    -0.040520 ')
 
         t3 = Table(fileName=dataFile, tableName="noname")
         self.assertEqual(t3[0].nmaDisplacements, '    -2.733360    -2.468260    -0.090721 ')
+
+        t4 = Table(fileName=dataFile, tableName="noname3")
+        self.assertEqual(t4[0].nmaDisplacements, '-2.733360    -2.468260    -0.090721')
 
     def test_write_singleRow(self):
         fn = '/tmp/test-single-row.star'
