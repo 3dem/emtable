@@ -143,7 +143,7 @@ class _ColumnsList:
 class _Reader(_ColumnsList):
     """ Internal class to handling reading table data. """
 
-    def __init__(self, inputFile, tableName='', guessType=True, types=None, shlex=False):
+    def __init__(self, inputFile, tableName='', guessType=True, types=None):
         """ Create a new Reader given a filename or file as input.
         Args:
             inputFile: can be either a string (filename) or file object.
@@ -151,10 +151,9 @@ class _Reader(_ColumnsList):
             guessType: if True, the columns type is guessed from the first row.
             types: It can be a dictionary {columnName: columnType} pairs that
                 allows to specify types for certain columns.
-            shlex: if True, use shlex split instead of default string split
         """
-        self._shlex = shlex
         _ColumnsList.__init__(self)
+        self._shlex = False
 
         if isinstance(inputFile, str):
             self._file = open(inputFile)
@@ -170,16 +169,21 @@ class _Reader(_ColumnsList):
         values = []
 
         while line.startswith('_'):
-            parts = _split(line, useshlex=self._shlex)
+            parts = line.split()
             colNames.append(parts[0][1:])
+            self._shlex = ("'" or '"') in parts
             if not foundLoop:
-                values.append(parts[1])
+                values.append(_split(line, useshlex=self._shlex)[1])
             line = self._file.readline().strip()
 
         self._singleRow = not foundLoop
 
         if foundLoop:
-            values = _split(line, useshlex=self._shlex) if line else []
+            if line:
+                self._shlex = ("'" or '"') in line.split()
+                values = _split(line, useshlex=self._shlex)
+            else:
+                values = []
 
         self._createColumns(colNames,
                             values=values, guessType=guessType, types=types)
@@ -323,7 +327,6 @@ class Table(_ColumnsList):
     def __init__(self, **kwargs):
         _ColumnsList.__init__(self)
         self.clear()
-        self._shlex = kwargs.pop('shlex', False)
 
         if 'fileName' in kwargs:
             if 'columns' in kwargs:
@@ -362,7 +365,7 @@ class Table(_ColumnsList):
         """
         self.clear()
         reader = _Reader(inputFile, tableName=tableName, guessType=guessType,
-                         types=types, shlex=self._shlex)
+                         types=types)
         self._columns = reader._columns
         self._rows = reader.readAll()
         self.Row = reader.Row
@@ -535,13 +538,6 @@ class Table(_ColumnsList):
 
     def __len__(self):
         return self.size()
-
-    def __iterRows(self, line, inputFile):
-        """ Internal method to iter through rows. """
-        typeList = [c.getType() for c in self.getColumns()]
-        while line:
-            yield self.Row(*[t(v) for t, v in zip(typeList, _split(line, useshlex=self._shlex))])
-            line = inputFile.readline().strip()
 
     def __iter__(self):
         return iter(self._rows)
