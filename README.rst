@@ -63,28 +63,6 @@ Alternatively, you can use **iterRows** method which also supports sorting by a 
 
 If for some reason you need to clear all rows and keep just the Table structure, use **clearRows()** method on any table.
 
-There is a special case when a column field contains several items and it is delimited by quotes:
-
-.. code-block::
-
-    # XMIPP_STAR_1 *
-    #
-    data_noname
-    loop_
-     _anglePsi
-     _angleRot
-     _angleTilt
-     _cost
-     _enabled
-     _image
-     _itemId
-     _nmaDisplacements
-     _shiftX
-     _shiftY
-     -180.009437   -96.153255   243.098777 8.055914e-04                    1 000021@Runs/000088_ProtImportParticles/extra/img.stk                   21 '    -2.733360    -2.468260    -0.090721 '    -4.306965    -0.040850
-        0.225648   206.555090     9.899219 7.811945e-04                    1 000002@Runs/000088_ProtImportParticles/extra/img.stk                    2 '   -41.891100   -41.568300     0.332499 '    -4.426523    -1.497812
-
-For such cases you need to pass **shlex=True** to the Table, so that each string of columns is split using shlex library. However, this requires emtable v0.0.14+
 
 Writing
 #######

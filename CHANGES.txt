@@ -1,4 +1,4 @@
-0.0.14: add shlex kwarg for parsing multi-item fields (@jamesmkrieger)
+0.0.14: add shlex parsing if column values contain quotes (multi-item fields, @jamesmkrieger)
 0.0.13: pass kwargs to Table()
 0.0.12: bugfix introduced in 0.0.11
 0.0.11:
