@@ -63,6 +63,7 @@ Alternatively, you can use **iterRows** method which also supports sorting by a 
 
 If for some reason you need to clear all rows and keep just the Table structure, use **clearRows()** method on any table.
 
+
 Writing
 #######
 

@@ -22,9 +22,11 @@
 __author__ = 'Jose Miguel de la Rosa Trevin, Grigory Sharov'
 
 
+import re
 import os
 import sys
 import argparse
+import shlex
 from collections import OrderedDict, namedtuple
 
 
@@ -145,13 +147,14 @@ class _Reader(_ColumnsList):
     def __init__(self, inputFile, tableName='', guessType=True, types=None):
         """ Create a new Reader given a filename or file as input.
         Args:
-            inputFile: can be either an string (filename) or file object.
+            inputFile: can be either a string (filename) or file object.
             tableName: name of the data that will be read.
             guessType: if True, the columns type is guessed from the first row.
             types: It can be a dictionary {columnName: columnType} pairs that
                 allows to specify types for certain columns.
         """
         _ColumnsList.__init__(self)
+        self._shlex = False
 
         if isinstance(inputFile, str):
             self._file = open(inputFile)
@@ -167,7 +170,8 @@ class _Reader(_ColumnsList):
         values = []
 
         while line.startswith('_'):
-            parts = line.split()
+            self._setSplitFunc(line)
+            parts = self._split(line)
             colNames.append(parts[0][1:])
             if not foundLoop:
                 values.append(parts[1])
@@ -176,7 +180,11 @@ class _Reader(_ColumnsList):
         self._singleRow = not foundLoop
 
         if foundLoop:
-            values = line.split() if line else []
+            if line:
+                self._setSplitFunc(line)
+                values = self._split(line)
+            else:
+                values = []
 
         self._createColumns(colNames,
                             values=values, guessType=guessType, types=types)
@@ -206,7 +214,7 @@ class _Reader(_ColumnsList):
         elif result is not None:
             line = self._file.readline().strip()
             line = None if line.startswith("data_") else line
-            self._row = self.__rowFromValues(line.split()) if line else None
+            self._row = self.__rowFromValues(self._split(line)) if line else None
 
         return result
 
@@ -236,6 +244,19 @@ class _Reader(_ColumnsList):
             rawLine = inputFile.readline()
 
         return line, foundLoop
+
+    def _setSplitFunc(self, line):
+        """ Set the split function to use based on the given line.
+        If single or double quotes are found in the line, use shlex
+        for values splitting, if not use string.split. """
+        def _split(line):
+            return line.split()
+
+        def _shlex(line):
+            return shlex.split(line)
+
+        self._split = _shlex if bool(re.search(r'\'|\"+', line)) else _split
+
 
     def readAll(self):
         """ Read all rows and return as a list. """
@@ -292,7 +313,7 @@ class _Writer:
 
     def _computeLineFormat(self, valuesList):
         """ Compute format base on row values width. """
-        # Take a hint for the columns width from the first row
+        # Take a hint for the column's width from the first row
         widths = [len(_formatValue(v)) for v in valuesList[0]]
         formats = [_getFormatStr(v) for v in valuesList[0]]
         n = len(valuesList)
@@ -357,8 +378,8 @@ class Table(_ColumnsList):
                 allows to specify types for certain columns.
         """
         self.clear()
-        reader = _Reader(inputFile,
-                         tableName=tableName, guessType=guessType, types=types)
+        reader = _Reader(inputFile, tableName=tableName, guessType=guessType,
+                         types=types)
         self._columns = reader._columns
         self._rows = reader.readAll()
         self.Row = reader.Row
@@ -502,7 +523,7 @@ class Table(_ColumnsList):
         Args:
             fileName: the input star filename, it might contain the '@'
                 to specify the tableName
-            key: key function to sort elements, it can also be an string that
+            key: key function to sort elements, it can also be a string that
                 will be used to retrieve the value of the column with that name.
             reverse: If true reverse the sort order.
             **kwargs:
@@ -532,13 +553,6 @@ class Table(_ColumnsList):
     def __len__(self):
         return self.size()
 
-    def __iterRows(self, line, inputFile):
-        """ Internal method to iter through rows. """
-        typeList = [c.getType() for c in self.getColumns()]
-        while line:
-            yield self.Row(*[t(v) for t, v in zip(typeList, line.split())])
-            line = inputFile.readline().strip()
-
     def __iter__(self):
         return iter(self._rows)
 
@@ -563,16 +577,13 @@ def _guessType(strValue):
             return str
 
 
-def _guessTypesFromLine(line):
-    return [_guessType(v) for v in line.split()]
-
-
 def _formatValue(v):
     return '%0.6f' % v if isinstance(v, float) else str(v)
 
 
 def _getFormatStr(v):
     return '.6f' if isinstance(v, float) else ''
+
 
 
 if __name__ == '__main__':
@@ -588,8 +599,6 @@ if __name__ == '__main__':
 
     add("-l", "--limit", type=int, default=0,
         help="Limit the number of rows processed, useful for testing. ")
-
-    # add("-v", "--verbosity", action="count", default=0)
 
     args = parser.parse_args()
 
