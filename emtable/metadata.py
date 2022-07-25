@@ -170,8 +170,8 @@ class _Reader(_ColumnsList):
         values = []
 
         while line.startswith('_'):
-            self._shlex = bool(re.search(r'\'|\"+', line))
-            parts = _split(line, useshlex=self._shlex)
+            self._setSplitFunc(line)
+            parts = self._split(line)
             colNames.append(parts[0][1:])
             if not foundLoop:
                 values.append(parts[1])
@@ -181,8 +181,8 @@ class _Reader(_ColumnsList):
 
         if foundLoop:
             if line:
-                self._shlex = bool(re.search(r'\'|\"+', line))
-                values = _split(line, useshlex=self._shlex)
+                self._setSplitFunc(line)
+                values = self._split(line)
             else:
                 values = []
 
@@ -214,7 +214,7 @@ class _Reader(_ColumnsList):
         elif result is not None:
             line = self._file.readline().strip()
             line = None if line.startswith("data_") else line
-            self._row = self.__rowFromValues(_split(line, useshlex=self._shlex)) if line else None
+            self._row = self.__rowFromValues(self._split(line)) if line else None
 
         return result
 
@@ -244,6 +244,19 @@ class _Reader(_ColumnsList):
             rawLine = inputFile.readline()
 
         return line, foundLoop
+
+    def _setSplitFunc(self, line):
+        """ Set the split function to use based on the given line.
+        If single or double quotes are found in the line, use shlex
+        for values splitting, if not use string.split. """
+        def _split(line):
+            return line.split()
+
+        def _shlex(line):
+            return shlex.split(line)
+
+        self._split = _shlex if bool(re.search(r'\'|\"+', line)) else _split
+
 
     def readAll(self):
         """ Read all rows and return as a list. """
@@ -571,12 +584,6 @@ def _formatValue(v):
 def _getFormatStr(v):
     return '.6f' if isinstance(v, float) else ''
 
-
-def _split(string, useshlex=False):
-    if useshlex:
-        return shlex.split(string)
-    else:
-        return string.split()
 
 
 if __name__ == '__main__':
